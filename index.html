@@ -138,10 +138,21 @@
         <textarea id="col-desc-input" class="input-field" rows="2"></textarea>
       </div>
       <div>
-        <label class="label">COVER IMAGE</label>
-        <div style="display:flex; gap:12px; align-items:center;">
+        <label class="label" for="col-cover-file">COVER IMAGE</label>
+        <div style="display:flex; gap:12px; align-items:center; min-width:0;">
           <div id="col-cover-preview" style="width:48px; height:48px; background:#0a0a0a; border:1px solid #262626; border-radius:4px; background-size:cover; background-position:center; flex-shrink:0;"></div>
-          <input type="file" id="col-cover-file" accept="image/*" class="btn" style="width:100%;">
+          <div style="flex:1; min-width:0;">
+            <input
+              type="file"
+              id="col-cover-file"
+              name="col-cover-file"
+              accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif"
+              aria-label="Select collection cover image"
+              class="input-field"
+              style="display:block; width:100%; min-width:0; min-height:44px; padding:10px 8px; font-size:16px; line-height:1.3; touch-action:manipulation; cursor:pointer;"
+            >
+            <div style="font-size:10px; color:#888; margin-top:5px;">Choose an image from your device.</div>
+          </div>
         </div>
       </div>
       <div style="display:flex; justify-end; gap:8px; margin-top:8px;">
@@ -254,12 +265,28 @@
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
         document.getElementById('col-cover-file').onchange = (e) => {
-          const file = e.target.files[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => this.openCropModal(event.target.result);
-            reader.readAsDataURL(file);
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+
+          if (file.type && !file.type.startsWith('image/')) {
+            alert('Please select an image file.');
+            e.target.value = '';
+            return;
           }
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target && typeof event.target.result === 'string') {
+              this.openCropModal(event.target.result);
+            } else {
+              alert('Could not read this image. Please try another image.');
+            }
+          };
+          reader.onerror = () => {
+            alert('Could not read this image. Try a JPG or PNG image.');
+            e.target.value = '';
+          };
+          reader.readAsDataURL(file);
         };
 
         document.getElementById('btn-rotate-left').onclick = () => this.cropper && this.cropper.rotate(-90);
