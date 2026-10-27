@@ -75,7 +75,7 @@
   <header class="sticky top-0 z-30 bg-brand-black/80 backdrop-blur-md border-b border-brand-border px-4 py-3 flex justify-between items-center">
     <div class="flex items-center gap-3 cursor-pointer" id="btn-logo">
       <div class="w-8 h-8 bg-white text-black font-black font-mono flex items-center justify-center text-xl tracking-tighter">C</div>
-      <h1 class="text-xl font-bold tracking-widest font-mono">CRYPT<span class="text-xs text-brand-muted font-normal ml-1">v1.2</span></h1>
+      <h1 class="text-xl font-bold tracking-widest font-mono">CRYPT<span class="text-xs text-brand-muted font-normal ml-1">v1.3</span></h1>
     </div>
 
     <!-- Search & Quick Actions -->
@@ -176,11 +176,8 @@
           <label class="text-[10px] text-brand-muted font-mono block mb-1">COVER IMAGE</label>
           <div class="flex items-center gap-3">
             <div id="col-cover-preview" class="w-12 h-12 bg-brand-black border border-brand-border rounded bg-cover bg-center flex-shrink-0"></div>
-            <!-- Pulsante visibile ed esplicito per Mobile -->
-            <label for="col-cover-file" class="cursor-pointer bg-brand-border hover:bg-neutral-700 text-white text-xs px-3 py-2 rounded font-mono">
-              Choose Image
-            </label>
-            <input type="file" id="col-cover-file" accept="image/*" class="hidden">
+            <!-- Input file visibile e nativo per massima compatibilità touch/mobile -->
+            <input type="file" id="col-cover-file" accept="image/*" class="w-full text-xs text-brand-muted file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-mono file:bg-brand-border file:text-white hover:file:bg-neutral-700">
           </div>
         </div>
       </div>
@@ -193,11 +190,11 @@
   </div>
 
   <!-- MODAL: CROP IMAGE -->
-  <div id="modal-crop" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+  <div id="modal-crop" class="fixed inset-0 bg-black/95 backdrop-blur-md z-[60] flex items-center justify-center p-4 hidden">
     <div class="bg-brand-card border border-brand-border p-4 rounded w-full max-w-lg space-y-3">
       <h3 class="font-mono font-bold text-xs tracking-wide">ADJUST COVER IMAGE</h3>
       
-      <div class="max-h-[60vh] overflow-hidden bg-black flex items-center justify-center rounded">
+      <div class="max-h-[50vh] overflow-hidden bg-black flex items-center justify-center rounded">
         <img id="crop-image-target" src="" class="max-w-full">
       </div>
 
@@ -209,7 +206,7 @@
         </div>
         <div class="flex gap-2">
           <button id="btn-cancel-crop" class="px-3 py-1 text-xs text-brand-muted font-mono">CANCEL</button>
-          <button id="btn-apply-crop" class="bg-white text-black px-4 py-1 text-xs font-mono font-bold rounded">APPLY</button>
+          <button id="btn-apply-crop" class="bg-white text-black px-4 py-1.5 text-xs font-mono font-bold rounded">APPLY</button>
         </div>
       </div>
     </div>
@@ -313,7 +310,7 @@
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
-        // Cover Input & Crop Handler
+        // Cover Input Direct Event (Senza label intermedie)
         const coverInput = document.getElementById('col-cover-file');
         coverInput.onchange = (e) => {
           const file = e.target.files[0];
