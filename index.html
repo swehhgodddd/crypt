@@ -11,6 +11,8 @@
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/000000/ffffff?text=C">
     
     <title>CRYPT.</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1148,5 +1150,15 @@
             app.init();
         });
     </script>
+<!-- Service Worker PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW registrato!', reg))
+          .catch(err => console.log('Errore SW:', err));
+      });
+    }
+  </script>
 </body>
 </html>
