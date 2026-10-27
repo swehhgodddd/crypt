@@ -13,56 +13,54 @@
   <meta name="theme-color" content="#000000">
   <link rel="apple-touch-icon" href="https://placehold.co/192x192/000000/ffffff?text=C">
 
-  <!-- Libraries -->
+  <!-- External Libraries -->
   <script src="https://unpkg.com/wavesurfer.js@7"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', monospace, sans-serif; }
-    body { background-color: #0a0a0a; color: #f5f5f5; padding-bottom: 90px; user-select: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', Courier, monospace, sans-serif; }
+    body { background-color: #0a0a0a; color: #f5f5f5; padding-bottom: 100px; -webkit-tap-highlight-color: transparent; }
     
-    /* Header */
-    header { position: sticky; top: 0; z-index: 30; background: rgba(10,10,10,0.9); backdrop-filter: blur(8px); border-bottom: 1px solid #262626; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
-    .logo-box { display: flex; items-center; gap: 10px; cursor: pointer; }
+    header { position: sticky; top: 0; z-index: 30; background: rgba(10,10,10,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #262626; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .logo-box { display: flex; align-items: center; gap: 10px; cursor: pointer; }
     .logo-icon { width: 32px; height: 32px; background: #fff; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 18px; }
     .logo-text { font-size: 18px; font-weight: bold; letter-spacing: 2px; }
     .logo-text span { font-size: 10px; color: #888; font-weight: normal; }
 
     .btn-group { display: flex; gap: 8px; align-items: center; }
-    .btn { background: #121212; border: 1px solid #262626; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+    .btn { background: #121212; border: 1px solid #262626; color: #fff; padding: 8px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
     .btn:hover { border-color: #666; }
     .btn-white { background: #fff; color: #000; font-weight: bold; border: none; }
     .btn-white:hover { background: #e5e5e5; }
 
-    /* Layout */
     main { max-width: 1200px; margin: 0 auto; padding: 20px 16px; }
     .section-title { font-size: 14px; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; }
     .section-sub { font-size: 11px; color: #888; margin-bottom: 20px; }
 
-    /* Grid Collections */
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
-    .card { background: #121212; border: 1px solid #262626; border-radius: 6px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; transition: border-color 0.2s; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+    .card { background: #121212; border: 1px solid #262626; border-radius: 6px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; }
     .card:hover { border-color: #ffffff; }
     .card-cover { aspect-ratio: 1; background-color: #0a0a0a; border: 1px solid #262626; border-radius: 4px; margin-bottom: 10px; background-size: cover; background-position: center; }
     .card-title { font-size: 12px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .card-desc { font-size: 10px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
     .card-footer { display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-top: 12px; }
 
-    /* Tracks List */
     .track-row { background: #121212; border: 1px solid #262626; padding: 10px 14px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .track-row:hover { border-color: #444; }
     .track-meta { display: flex; align-items: center; gap: 12px; }
-    .btn-play { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .btn-play { width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .tag { background: #0a0a0a; border: 1px solid #262626; padding: 2px 6px; font-size: 10px; color: #ccc; border-radius: 3px; }
 
     /* Modals */
-    .modal-overlay { fixed: true; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
     .modal-overlay.hidden { display: none !important; }
     .modal-box { background: #121212; border: 1px solid #262626; padding: 20px; border-radius: 6px; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; }
-    .input-field { width: 100%; background: #0a0a0a; border: 1px solid #262626; color: #fff; padding: 8px; border-radius: 4px; font-size: 11px; outline: none; }
+    
+    /* Input Styling */
+    .input-field { width: 100%; background: #0a0a0a; border: 1px solid #262626; color: #fff; padding: 10px; border-radius: 4px; font-size: 12px; outline: none; }
     .input-field:focus { border-color: #fff; }
+    .input-file-native { width: 100%; background: #0a0a0a; border: 1px solid #262626; color: #888; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
     .label { font-size: 10px; color: #888; margin-bottom: 4px; display: block; }
 
     /* Player */
@@ -77,7 +75,7 @@
   <header>
     <div class="logo-box" id="btn-logo">
       <div class="logo-icon">C</div>
-      <div class="logo-text">CRYPT <span>v1.4</span></div>
+      <div class="logo-text">CRYPT <span>v1.5</span></div>
     </div>
     <div class="btn-group">
       <button id="btn-export" class="btn" title="Export Backup">💾 Backup</button>
@@ -115,7 +113,7 @@
   <div id="global-player" class="hidden">
     <div class="player-container">
       <div id="player-cover" style="width:40px; height:40px; background:#121212; border:1px solid #262626; border-radius:4px; background-size:cover; background-position:center; flex-shrink:0;"></div>
-      <div style="width:180px; overflow:hidden;">
+      <div style="width:160px; overflow:hidden;">
         <div id="player-title" style="font-size:11px; font-weight:bold; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">Track</div>
         <div id="player-sub" style="font-size:9px; color:#888;">--</div>
       </div>
@@ -131,31 +129,21 @@
       <div id="modal-collection-title" class="section-title">NEW COLLECTION</div>
       <div>
         <label class="label">TITLE</label>
-        <input type="text" id="col-title-input" class="input-field">
+        <input type="text" id="col-title-input" class="input-field" placeholder="e.g. Dark Trap 2026">
       </div>
       <div>
         <label class="label">DESCRIPTION</label>
-        <textarea id="col-desc-input" class="input-field" rows="2"></textarea>
+        <textarea id="col-desc-input" class="input-field" rows="2" placeholder="Optional notes..."></textarea>
       </div>
       <div>
-        <label class="label" for="col-cover-file">COVER IMAGE</label>
-        <div style="display:flex; gap:12px; align-items:center; min-width:0;">
+        <label class="label">COVER IMAGE</label>
+        <div style="display:flex; gap:12px; align-items:center;">
           <div id="col-cover-preview" style="width:48px; height:48px; background:#0a0a0a; border:1px solid #262626; border-radius:4px; background-size:cover; background-position:center; flex-shrink:0;"></div>
-          <div style="flex:1; min-width:0;">
-            <input
-              type="file"
-              id="col-cover-file"
-              name="col-cover-file"
-              accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif"
-              aria-label="Select collection cover image"
-              class="input-field"
-              style="display:block; width:100%; min-width:0; min-height:44px; padding:10px 8px; font-size:16px; line-height:1.3; touch-action:manipulation; cursor:pointer;"
-            >
-            <div style="font-size:10px; color:#888; margin-top:5px;">Choose an image from your device.</div>
-          </div>
+          <!-- Standard native file input for direct browser/mobile compatibility -->
+          <input type="file" id="col-cover-file" accept="image/*" class="input-file-native">
         </div>
       </div>
-      <div style="display:flex; justify-end; gap:8px; margin-top:8px;">
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
         <button id="btn-cancel-col" class="btn">CANCEL</button>
         <button id="btn-save-col" class="btn btn-white">SAVE</button>
       </div>
@@ -163,11 +151,11 @@
   </div>
 
   <!-- MODAL CROP -->
-  <div id="modal-crop" class="modal-overlay hidden" style="z-index:60;">
-    <div class="modal-box" style="max-width:500px;">
+  <div id="modal-crop" class="modal-overlay hidden" style="z-index:200;">
+    <div class="modal-box" style="max-width:480px;">
       <div class="section-title">ADJUST COVER</div>
-      <div style="max-height:300px; overflow:hidden; background:#000; border-radius:4px;">
-        <img id="crop-image-target" src="" style="max-width:100%;">
+      <div style="max-height:280px; overflow:hidden; background:#000; border-radius:4px; display:flex; justify-content:center; align-items:center;">
+        <img id="crop-image-target" src="" style="max-width:100%; display:block;">
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
         <div style="display:flex; gap:4px;">
@@ -187,12 +175,12 @@
     <div class="modal-box">
       <div class="section-title">ADD TRACK</div>
       <div>
-        <label class="label">AUDIO FILE</label>
-        <input type="file" id="track-audio-file" accept="audio/*" class="input-field">
+        <label class="label">AUDIO FILE (MP3, WAV)</label>
+        <input type="file" id="track-audio-file" accept="audio/*" class="input-file-native">
       </div>
       <div>
         <label class="label">TITLE</label>
-        <input type="text" id="track-title-input" class="input-field">
+        <input type="text" id="track-title-input" class="input-field" placeholder="Track Title">
       </div>
       <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
         <div>
@@ -264,30 +252,15 @@
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
-        document.getElementById('col-cover-file').onchange = (e) => {
-          const file = e.target.files && e.target.files[0];
-          if (!file) return;
-
-          if (file.type && !file.type.startsWith('image/')) {
-            alert('Please select an image file.');
-            e.target.value = '';
-            return;
+        // Direct File Change Listener
+        document.getElementById('col-cover-file').addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => this.openCropModal(event.target.result);
+            reader.readAsDataURL(file);
           }
-
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            if (event.target && typeof event.target.result === 'string') {
-              this.openCropModal(event.target.result);
-            } else {
-              alert('Could not read this image. Please try another image.');
-            }
-          };
-          reader.onerror = () => {
-            alert('Could not read this image. Try a JPG or PNG image.');
-            e.target.value = '';
-          };
-          reader.readAsDataURL(file);
-        };
+        });
 
         document.getElementById('btn-rotate-left').onclick = () => this.cropper && this.cropper.rotate(-90);
         document.getElementById('btn-rotate-right').onclick = () => this.cropper && this.cropper.rotate(90);
