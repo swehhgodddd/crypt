@@ -13,192 +13,233 @@
   <meta name="theme-color" content="#000000">
   <link rel="apple-touch-icon" href="https://placehold.co/192x192/000000/ffffff?text=C">
 
-  <!-- External Libraries -->
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              black: '#0a0a0a',
+              card: '#121212',
+              border: '#262626',
+              light: '#f5f5f5',
+              muted: '#888888'
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Courier New', 'monospace'],
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Wavesurfer.js -->
   <script src="https://unpkg.com/wavesurfer.js@7"></script>
+  <!-- LocalForage (IndexedDB Wrapper) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+  <!-- Cropper.js -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'JetBrains Mono', Courier, monospace, sans-serif; }
-    body { background-color: #0a0a0a; color: #f5f5f5; padding-bottom: 100px; -webkit-tap-highlight-color: transparent; }
-    
-    header { position: sticky; top: 0; z-index: 30; background: rgba(10,10,10,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #262626; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
-    .logo-box { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-    .logo-icon { width: 32px; height: 32px; background: #fff; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-    .logo-text { font-size: 18px; font-weight: bold; letter-spacing: 2px; }
-    .logo-text span { font-size: 10px; color: #888; font-weight: normal; }
-
-    .btn-group { display: flex; gap: 8px; align-items: center; }
-    .btn { background: #121212; border: 1px solid #262626; color: #fff; padding: 8px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
-    .btn:hover { border-color: #666; }
-    .btn-white { background: #fff; color: #000; font-weight: bold; border: none; }
-    .btn-white:hover { background: #e5e5e5; }
-
-    main { max-width: 1200px; margin: 0 auto; padding: 20px 16px; }
-    .section-title { font-size: 14px; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; }
-    .section-sub { font-size: 11px; color: #888; margin-bottom: 20px; }
-
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
-    .card { background: #121212; border: 1px solid #262626; border-radius: 6px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; }
-    .card:hover { border-color: #ffffff; }
-    .card-cover { aspect-ratio: 1; background-color: #0a0a0a; border: 1px solid #262626; border-radius: 4px; margin-bottom: 10px; background-size: cover; background-position: center; }
-    .card-title { font-size: 12px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .card-desc { font-size: 10px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-    .card-footer { display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-top: 12px; }
-
-    .track-row { background: #121212; border: 1px solid #262626; padding: 10px 14px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .track-meta { display: flex; align-items: center; gap: 12px; }
-    .btn-play { width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #000; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .tag { background: #0a0a0a; border: 1px solid #262626; padding: 2px 6px; font-size: 10px; color: #ccc; border-radius: 3px; }
-
-    /* Modals */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
-    .modal-overlay.hidden { display: none !important; }
-    .modal-box { background: #121212; border: 1px solid #262626; padding: 20px; border-radius: 6px; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; }
-    
-    /* Input Styling */
-    .input-field { width: 100%; background: #0a0a0a; border: 1px solid #262626; color: #fff; padding: 10px; border-radius: 4px; font-size: 12px; outline: none; }
-    .input-field:focus { border-color: #fff; }
-    .input-file-native { width: 100%; background: #0a0a0a; border: 1px solid #262626; color: #888; padding: 8px; border-radius: 4px; font-size: 11px; cursor: pointer; }
-    .label { font-size: 10px; color: #888; margin-bottom: 4px; display: block; }
-
-    /* Player */
-    #global-player { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,10,10,0.95); border-top: 1px solid #262626; padding: 12px 16px; z-index: 40; backdrop-filter: blur(10px); }
-    #global-player.hidden { display: none !important; }
-    .player-container { max-width: 1200px; margin: 0 auto; display: flex; gap: 16px; align-items: center; }
-    #waveform { flex: 1; }
+    body {
+      background-color: #0a0a0a;
+      color: #f5f5f5;
+      /* Mantiene lo stile app ma permette i tap nativi */
+      -webkit-tap-highlight-color: transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0a0a0a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #262626;
+      border-radius: 2px;
+    }
+    .cropper-view-box, .cropper-face {
+      border-radius: 4px;
+    }
   </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col font-sans text-sm pb-24">
 
-  <header>
-    <div class="logo-box" id="btn-logo">
-      <div class="logo-icon">C</div>
-      <div class="logo-text">CRYPT <span>v1.5</span></div>
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-brand-black/80 backdrop-blur-md border-b border-brand-border px-4 py-3 flex justify-between items-center">
+    <div class="flex items-center gap-3 cursor-pointer" id="btn-logo">
+      <div class="w-8 h-8 bg-white text-black font-black font-mono flex items-center justify-center text-xl tracking-tighter">C</div>
+      <h1 class="text-xl font-bold tracking-widest font-mono">CRYPT<span class="text-xs text-brand-muted font-normal ml-1">v1.6</span></h1>
     </div>
-    <div class="btn-group">
-      <button id="btn-export" class="btn" title="Export Backup">💾 Backup</button>
-      <button id="btn-import-trigger" class="btn" title="Import Backup">📥 Import</button>
-      <input type="file" id="import-file-input" accept=".json" style="display:none">
-      <button id="btn-open-create-collection" class="btn btn-white">+ COLLECTION</button>
+
+    <!-- Quick Actions -->
+    <div class="flex items-center gap-2">
+      <button id="btn-export" title="Export Backup" class="p-2 bg-brand-card border border-brand-border rounded hover:bg-neutral-800 transition">💾</button>
+      <button id="btn-import-trigger" title="Import Backup" class="p-2 bg-brand-card border border-brand-border rounded hover:bg-neutral-800 transition">📥</button>
+      <input type="file" id="import-file-input" accept=".json" class="hidden">
+      <button id="btn-open-create-collection" class="bg-white text-black px-3 py-1.5 font-semibold text-xs rounded hover:bg-neutral-200 transition font-mono">+ COLLECTION</button>
     </div>
   </header>
 
-  <main>
-    <div id="breadcrumb" style="display:none; margin-bottom: 16px; font-size: 11px; color: #888;">
-      <span id="nav-home" style="cursor:pointer;">CRYPT</span> / <span id="nav-current" style="color:#fff;">...</span>
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6">
+    
+    <!-- Navigation Breadcrumb -->
+    <div id="breadcrumb" class="mb-6 hidden flex items-center gap-2 text-brand-muted text-xs font-mono">
+      <span class="cursor-pointer hover:text-white transition" id="nav-home">CRYPT</span>
+      <span>/</span>
+      <span id="nav-current" class="text-white">...</span>
     </div>
 
     <!-- COLLECTIONS VIEW -->
     <section id="view-collections">
-      <div class="section-title">YOUR CRYPT</div>
-      <div class="section-sub">Select or create a vault to explore beats.</div>
-      <div id="collections-grid" class="grid"></div>
+      <div class="flex justify-between items-end mb-4">
+        <div>
+          <h2 class="text-lg font-bold font-mono tracking-wider">YOUR CRYPT</h2>
+          <p class="text-xs text-brand-muted">Select or create a vault to explore beats.</p>
+        </div>
+      </div>
+
+      <div id="collections-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <!-- Rendered via JS -->
+      </div>
     </section>
 
-    <!-- DETAIL VIEW -->
-    <section id="view-collection-detail" style="display:none;">
-      <div id="collection-header-detail" style="background:#121212; border:1px solid #262626; padding:16px; border-radius:6px; display:flex; gap:16px; align-items:center; margin-bottom:20px; position:relative;"></div>
-      
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <div class="section-title">TRACKS</div>
-        <button id="btn-open-add-track" class="btn btn-white">+ ADD TRACK</button>
+    <!-- SINGLE COLLECTION DETAIL VIEW -->
+    <section id="view-collection-detail" class="hidden">
+      <div id="collection-header-detail" class="mb-6 flex flex-col sm:flex-row gap-6 items-start sm:items-center bg-brand-card p-4 rounded border border-brand-border relative">
+        <!-- Collection Detail Rendered via JS -->
       </div>
-      <div id="tracks-list"></div>
+
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-mono text-xs text-brand-muted uppercase tracking-wider">Tracks</h3>
+        <button id="btn-open-add-track" class="bg-white text-black px-3 py-1 text-xs font-mono font-bold rounded hover:bg-neutral-200 transition">+ ADD TRACK</button>
+      </div>
+
+      <!-- Tracks List -->
+      <div id="tracks-list" class="space-y-2">
+        <!-- Tracks Rendered via JS -->
+      </div>
     </section>
+
   </main>
 
-  <!-- PLAYER -->
-  <div id="global-player" class="hidden">
-    <div class="player-container">
-      <div id="player-cover" style="width:40px; height:40px; background:#121212; border:1px solid #262626; border-radius:4px; background-size:cover; background-position:center; flex-shrink:0;"></div>
-      <div style="width:160px; overflow:hidden;">
-        <div id="player-title" style="font-size:11px; font-weight:bold; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">Track</div>
-        <div id="player-sub" style="font-size:9px; color:#888;">--</div>
-      </div>
-      <button id="player-play-btn" class="btn-play">▶</button>
-      <div id="waveform"></div>
-      <span id="player-time" style="font-size:10px; color:#888;">00:00</span>
-    </div>
-  </div>
-
-  <!-- MODAL COLLECTION -->
-  <div id="modal-collection" class="modal-overlay hidden">
-    <div class="modal-box">
-      <div id="modal-collection-title" class="section-title">NEW COLLECTION</div>
-      <div>
-        <label class="label">TITLE</label>
-        <input type="text" id="col-title-input" class="input-field" placeholder="e.g. Dark Trap 2026">
-      </div>
-      <div>
-        <label class="label">DESCRIPTION</label>
-        <textarea id="col-desc-input" class="input-field" rows="2" placeholder="Optional notes..."></textarea>
-      </div>
-      <div>
-        <label class="label">COVER IMAGE</label>
-        <div style="display:flex; gap:12px; align-items:center;">
-          <div id="col-cover-preview" style="width:48px; height:48px; background:#0a0a0a; border:1px solid #262626; border-radius:4px; background-size:cover; background-position:center; flex-shrink:0;"></div>
-          <!-- Standard native file input for direct browser/mobile compatibility -->
-          <input type="file" id="col-cover-file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" class="input-file-native">
+  <!-- PERSISTENT GLOBAL PLAYER -->
+  <div id="global-player" class="fixed bottom-0 left-0 right-0 bg-brand-black/95 backdrop-blur-lg border-t border-brand-border z-40 p-3 hidden transition-all">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-3">
+      <!-- Track Meta -->
+      <div class="flex items-center gap-3 w-full md:w-1/4">
+        <div id="player-cover" class="w-10 h-10 bg-brand-card border border-brand-border rounded flex-shrink-0 bg-cover bg-center"></div>
+        <div class="truncate">
+          <div id="player-title" class="font-bold text-xs truncate">No track selected</div>
+          <div id="player-sub" class="text-[10px] text-brand-muted font-mono truncate">--</div>
         </div>
       </div>
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-        <button id="btn-cancel-col" class="btn">CANCEL</button>
-        <button id="btn-save-col" class="btn btn-white">SAVE</button>
+
+      <!-- Waveform & Controls -->
+      <div class="flex-1 w-full flex items-center gap-3">
+        <button id="player-play-btn" class="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0">▶</button>
+        <div class="flex-1 relative">
+          <div id="waveform" class="w-full"></div>
+        </div>
+        <span id="player-time" class="font-mono text-[10px] text-brand-muted flex-shrink-0">00:00</span>
       </div>
     </div>
   </div>
 
-  <!-- MODAL CROP -->
-  <div id="modal-crop" class="modal-overlay hidden" style="z-index:200;">
-    <div class="modal-box" style="max-width:480px;">
-      <div class="section-title">ADJUST COVER</div>
-      <div style="max-height:280px; overflow:hidden; background:#000; border-radius:4px; display:flex; justify-content:center; align-items:center;">
-        <img id="crop-image-target" src="" style="max-width:100%; display:block;">
-      </div>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-        <div style="display:flex; gap:4px;">
-          <button id="btn-rotate-left" class="btn">↺ 90°</button>
-          <button id="btn-rotate-right" class="btn">↻ 90°</button>
+  <!-- MODAL: CREATE / EDIT COLLECTION -->
+  <div id="modal-collection" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-brand-card border border-brand-border p-5 rounded w-full max-w-md space-y-4">
+      <h3 id="modal-collection-title" class="font-mono font-bold text-sm tracking-wide">NEW COLLECTION</h3>
+      
+      <div class="space-y-3">
+        <div>
+          <label class="text-[10px] text-brand-muted font-mono block mb-1">TITLE</label>
+          <input type="text" id="col-title-input" class="w-full bg-brand-black border border-brand-border p-2 text-xs rounded focus:outline-none focus:border-white">
         </div>
-        <div style="display:flex; gap:4px;">
-          <button id="btn-cancel-crop" class="btn">CANCEL</button>
-          <button id="btn-apply-crop" class="btn btn-white">APPLY</button>
+        <div>
+          <label class="text-[10px] text-brand-muted font-mono block mb-1">DESCRIPTION</label>
+          <textarea id="col-desc-input" rows="2" class="w-full bg-brand-black border border-brand-border p-2 text-xs rounded focus:outline-none focus:border-white"></textarea>
+        </div>
+        <div>
+          <label class="text-[10px] text-brand-muted font-mono block mb-1">COVER IMAGE</label>
+          <div class="flex flex-col gap-2">
+            <div id="col-cover-preview" class="w-16 h-16 bg-brand-black border border-brand-border rounded bg-cover bg-center flex-shrink-0 hidden"></div>
+            <!-- Input file nativo, visibile e facile da cliccare -->
+            <input type="file" id="col-cover-file" accept="image/*" class="w-full text-xs text-brand-muted file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-mono file:bg-brand-border file:text-white hover:file:bg-neutral-700 cursor-pointer">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="btn-cancel-col" class="px-3 py-1.5 text-xs text-brand-muted font-mono hover:text-white">CANCEL</button>
+        <button id="btn-save-col" class="bg-white text-black px-4 py-1.5 text-xs font-mono font-bold rounded">SAVE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CROP IMAGE -->
+  <div id="modal-crop" class="fixed inset-0 bg-black/95 backdrop-blur-md z-[60] flex items-center justify-center p-4 hidden">
+    <div class="bg-brand-card border border-brand-border p-4 rounded w-full max-w-lg space-y-3">
+      <h3 class="font-mono font-bold text-xs tracking-wide">ADJUST COVER IMAGE</h3>
+      
+      <div class="max-h-[50vh] overflow-hidden bg-black flex items-center justify-center rounded">
+        <img id="crop-image-target" src="" class="max-w-full">
+      </div>
+
+      <!-- Controllo Rotazione -->
+      <div class="flex justify-between items-center pt-2">
+        <div class="flex gap-2">
+          <button id="btn-rotate-left" class="bg-brand-border px-3 py-1 text-xs font-mono rounded">↺ 90°</button>
+          <button id="btn-rotate-right" class="bg-brand-border px-3 py-1 text-xs font-mono rounded">↻ 90°</button>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-cancel-crop" class="px-3 py-1 text-xs text-brand-muted font-mono">CANCEL</button>
+          <button id="btn-apply-crop" class="bg-white text-black px-4 py-1.5 text-xs font-mono font-bold rounded">APPLY</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- MODAL TRACK -->
-  <div id="modal-track" class="modal-overlay hidden">
-    <div class="modal-box">
-      <div class="section-title">ADD TRACK</div>
-      <div>
-        <label class="label">AUDIO FILE (MP3, WAV)</label>
-        <input type="file" id="track-audio-file" accept="audio/*" class="input-file-native">
-      </div>
-      <div>
-        <label class="label">TITLE</label>
-        <input type="text" id="track-title-input" class="input-field" placeholder="Track Title">
-      </div>
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+  <!-- MODAL: ADD TRACK -->
+  <div id="modal-track" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-brand-card border border-brand-border p-5 rounded w-full max-w-md space-y-4">
+      <h3 class="font-mono font-bold text-sm tracking-wide">ADD TRACK</h3>
+      
+      <div class="space-y-3">
         <div>
-          <label class="label">BPM</label>
-          <input type="text" id="track-bpm-input" placeholder="140" class="input-field">
+          <label class="text-[10px] text-brand-muted font-mono block mb-1">AUDIO FILE (MP3, WAV, etc)</label>
+          <input type="file" id="track-audio-file" accept="audio/*" class="w-full text-xs text-brand-muted file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-mono file:bg-brand-border file:text-white hover:file:bg-neutral-700 cursor-pointer">
         </div>
         <div>
-          <label class="label">KEY</label>
-          <input type="text" id="track-key-input" placeholder="C min" class="input-field">
+          <label class="text-[10px] text-brand-muted font-mono block mb-1">TITLE</label>
+          <input type="text" id="track-title-input" class="w-full bg-brand-black border border-brand-border p-2 text-xs rounded focus:outline-none focus:border-white">
         </div>
-        <div>
-          <label class="label">GENRE</label>
-          <input type="text" id="track-genre-input" placeholder="Trap" class="input-field">
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="text-[10px] text-brand-muted font-mono block mb-1">BPM</label>
+            <input type="text" id="track-bpm-input" placeholder="140" class="w-full bg-brand-black border border-brand-border p-2 text-xs rounded font-mono focus:outline-none focus:border-white">
+          </div>
+          <div>
+            <label class="text-[10px] text-brand-muted font-mono block mb-1">KEY</label>
+            <input type="text" id="track-key-input" placeholder="C min" class="w-full bg-brand-black border border-brand-border p-2 text-xs rounded font-mono focus:outline-none focus:border-white">
+          </div>
+          <div>
+            <label class="text-[10px] text-brand-muted font-mono block mb-1">GENRE</label>
+            <input type="text" id="track-genre-input" placeholder="Trap" class="w-full bg-brand-black border border-brand-border p-2 text-xs rounded font-mono focus:outline-none focus:border-white">
+          </div>
         </div>
       </div>
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-        <button id="btn-cancel-track" class="btn">CANCEL</button>
-        <button id="btn-save-track" class="btn btn-white">UPLOAD</button>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="btn-cancel-track" class="px-3 py-1.5 text-xs text-brand-muted font-mono hover:text-white">CANCEL</button>
+        <button id="btn-save-track" class="bg-white text-black px-4 py-1.5 text-xs font-mono font-bold rounded">UPLOAD</button>
       </div>
     </div>
   </div>
@@ -230,7 +271,7 @@
           cursorColor: '#ffffff',
           barWidth: 2,
           barGap: 1,
-          height: 28,
+          height: 32,
           responsive: true
         });
 
@@ -252,20 +293,14 @@
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
-        // File change listener (mobile-safe: ridimensiona l'immagine prima del crop)
-        document.getElementById('col-cover-file').addEventListener('change', async (e) => {
-          const input = e.target;
-          const file = input.files && input.files[0];
-          if (!file) return;
-          try {
-            const dataUrl = await this.prepareImage(file);
-            this.openCropModal(dataUrl);
-          } catch (err) {
-            console.error('Cover load error:', err);
-            alert('Impossibile leggere questa immagine. Prova con un JPG o PNG.');
+        document.getElementById('col-cover-file').onchange = (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => this.openCropModal(event.target.result);
+            reader.readAsDataURL(file);
           }
-          input.value = '';
-        });
+        };
 
         document.getElementById('btn-rotate-left').onclick = () => this.cropper && this.cropper.rotate(-90);
         document.getElementById('btn-rotate-right').onclick = () => this.cropper && this.cropper.rotate(90);
@@ -274,7 +309,9 @@
           if (this.cropper) {
             const canvas = this.cropper.getCroppedCanvas({ width: 500, height: 500 });
             this.tempCroppedImageBase64 = canvas.toDataURL('image/jpeg', 0.85);
-            document.getElementById('col-cover-preview').style.backgroundImage = `url(${this.tempCroppedImageBase64})`;
+            const preview = document.getElementById('col-cover-preview');
+            preview.style.backgroundImage = `url(${this.tempCroppedImageBase64})`;
+            preview.classList.remove('hidden');
             this.closeCropModal();
           }
         };
@@ -291,54 +328,26 @@
         };
 
         document.getElementById('btn-export').onclick = () => this.exportBackup();
-        document.getElementById('btn-import-trigger').onclick = () => document.getElementById('import-file-input').click();
+        
+        document.getElementById('btn-import-trigger').onclick = () => {
+          document.getElementById('import-file-input').click();
+        };
         document.getElementById('import-file-input').onchange = (e) => this.importBackup(e);
-      },
-
-      // Ridimensiona (max 1600px) e raddrizza l'EXIF: le foto da telefono sono enormi
-      async prepareImage(file) {
-        const MAX = 1600;
-        let source, w, h;
-        if (window.createImageBitmap) {
-          try {
-            source = await createImageBitmap(file, { imageOrientation: 'from-image' });
-            w = source.width; h = source.height;
-          } catch (_) { source = null; }
-        }
-        if (!source) {
-          const url = URL.createObjectURL(file);
-          const img = new Image();
-          await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
-          URL.revokeObjectURL(url);
-          source = img; w = img.naturalWidth; h = img.naturalHeight;
-        }
-        const scale = Math.min(1, MAX / Math.max(w, h));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(w * scale);
-        canvas.height = Math.round(h * scale);
-        canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
-        if (source.close) source.close();
-        return canvas.toDataURL('image/jpeg', 0.9);
       },
 
       openCropModal(imageSrc) {
         const cropImg = document.getElementById('crop-image-target');
-        if (this.cropper) { this.cropper.destroy(); this.cropper = null; }
-        document.getElementById('modal-crop').classList.remove('hidden');
-        // Cropper va creato SOLO dopo che l'immagine e' caricata
-        cropImg.onload = () => {
-          cropImg.onload = null;
-          this.cropper = new Cropper(cropImg, {
-            aspectRatio: 1, viewMode: 1, background: false,
-            checkOrientation: false, autoCropArea: 1
-          });
-        };
         cropImg.src = imageSrc;
+        document.getElementById('modal-crop').classList.remove('hidden');
+
+        if (this.cropper) this.cropper.destroy();
+        this.cropper = new Cropper(cropImg, { aspectRatio: 1, viewMode: 1, background: false });
       },
 
       closeCropModal() {
         document.getElementById('modal-crop').classList.add('hidden');
         if (this.cropper) { this.cropper.destroy(); this.cropper = null; }
+        document.getElementById('col-cover-file').value = '';
       },
 
       async persistData() {
@@ -347,9 +356,9 @@
 
       goHome() {
         this.currentCollectionId = null;
-        document.getElementById('view-collection-detail').style.display = 'none';
-        document.getElementById('view-collections').style.display = 'block';
-        document.getElementById('breadcrumb').style.display = 'none';
+        document.getElementById('view-collection-detail').classList.add('hidden');
+        document.getElementById('view-collections').classList.remove('hidden');
+        document.getElementById('breadcrumb').classList.add('hidden');
         this.render();
       },
 
@@ -358,19 +367,27 @@
         this.tempCroppedImageBase64 = null;
         const modal = document.getElementById('modal-collection');
         const titleEl = document.getElementById('modal-collection-title');
+        const preview = document.getElementById('col-cover-preview');
         
         if (id) {
           titleEl.innerText = 'EDIT COLLECTION';
           const col = this.data.collections.find(c => c.id === id);
           document.getElementById('col-title-input').value = col.title;
           document.getElementById('col-desc-input').value = col.desc || '';
-          document.getElementById('col-cover-preview').style.backgroundImage = col.cover ? `url(${col.cover})` : 'none';
-          this.tempCroppedImageBase64 = col.cover;
+          if (col.cover) {
+            preview.style.backgroundImage = `url(${col.cover})`;
+            preview.classList.remove('hidden');
+            this.tempCroppedImageBase64 = col.cover;
+          } else {
+            preview.style.backgroundImage = 'none';
+            preview.classList.add('hidden');
+          }
         } else {
           titleEl.innerText = 'NEW COLLECTION';
           document.getElementById('col-title-input').value = '';
           document.getElementById('col-desc-input').value = '';
-          document.getElementById('col-cover-preview').style.backgroundImage = 'none';
+          preview.style.backgroundImage = 'none';
+          preview.classList.add('hidden');
         }
         modal.classList.remove('hidden');
       },
@@ -488,23 +505,24 @@
         grid.innerHTML = '';
 
         if (this.data.collections.length === 0) {
-          grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 40px; color:#888; font-size:11px;">No collections created yet. Click "+ COLLECTION" to start.</div>`;
+          grid.innerHTML = `<div class="col-span-full text-center py-12 text-brand-muted font-mono text-xs">No collections created yet. Click "+ COLLECTION" to start.</div>`;
           return;
         }
 
         this.data.collections.forEach(col => {
           const trackCount = this.data.tracks.filter(t => t.collectionId === col.id).length;
           const card = document.createElement('div');
-          card.className = 'card';
+          card.className = 'bg-brand-card border border-brand-border rounded p-3 cursor-pointer hover:border-white transition flex flex-col justify-between group relative';
+          
           card.innerHTML = `
             <div>
-              <div class="card-cover" style="background-image:${col.cover ? `url(${col.cover})` : 'none'}"></div>
-              <div class="card-title">${col.title}</div>
-              <div class="card-desc">${col.desc || 'No description'}</div>
+              <div class="aspect-square bg-brand-black border border-brand-border rounded mb-3 bg-cover bg-center" style="background-image:${col.cover ? `url(${col.cover})` : 'none'}"></div>
+              <h3 class="font-bold text-xs truncate group-hover:text-white font-mono">${col.title}</h3>
+              <p class="text-[10px] text-brand-muted truncate mt-0.5">${col.desc || 'No description'}</p>
             </div>
-            <div class="card-footer">
+            <div class="mt-3 flex justify-between items-center text-[10px] text-brand-muted font-mono">
               <span>${trackCount} tracks</span>
-              <span class="btn-edit-col" data-id="${col.id}" style="cursor:pointer; color:#fff;">✎ Edit</span>
+              <button class="btn-edit-col hover:text-white" data-id="${col.id}">✎ Edit</button>
             </div>
           `;
 
@@ -523,9 +541,9 @@
 
       openCollectionDetail(id) {
         this.currentCollectionId = id;
-        document.getElementById('view-collections').style.display = 'none';
-        document.getElementById('view-collection-detail').style.display = 'block';
-        document.getElementById('breadcrumb').style.display = 'block';
+        document.getElementById('view-collections').classList.add('hidden');
+        document.getElementById('view-collection-detail').classList.remove('hidden');
+        document.getElementById('breadcrumb').classList.remove('hidden');
         this.renderCollectionDetail(id);
       },
 
@@ -537,12 +555,12 @@
 
         const headerEl = document.getElementById('collection-header-detail');
         headerEl.innerHTML = `
-          <div style="width:96px; height:96px; background:#0a0a0a; border:1px solid #262626; border-radius:4px; background-size:cover; background-position:center; flex-shrink:0; background-image:${col.cover ? `url(${col.cover})` : 'none'}"></div>
-          <div style="flex:1;">
-            <div class="section-title" style="font-size:18px;">${col.title}</div>
-            <div style="font-size:11px; color:#888; margin-top:4px;">${col.desc || 'No description'}</div>
+          <div class="w-24 h-24 sm:w-32 sm:h-32 bg-brand-black border border-brand-border rounded bg-cover bg-center flex-shrink-0" style="background-image:${col.cover ? `url(${col.cover})` : 'none'}"></div>
+          <div class="flex-1">
+            <h2 class="text-xl font-bold font-mono tracking-wide">${col.title}</h2>
+            <p class="text-xs text-brand-muted mt-1">${col.desc || 'No description'}</p>
           </div>
-          <button id="btn-delete-col" class="btn" style="position:absolute; top:12px; right:12px; color:#ff4444; border-color:#441111;">🗑 Delete</button>
+          <button id="btn-delete-col" class="absolute top-3 right-3 text-brand-muted hover:text-red-500 font-mono text-xs">🗑 Delete Vault</button>
         `;
 
         document.getElementById('btn-delete-col').onclick = () => this.deleteCollection(col.id);
@@ -553,25 +571,27 @@
         const tracks = this.data.tracks.filter(t => t.collectionId === id);
 
         if (tracks.length === 0) {
-          listEl.innerHTML = `<div style="text-align:center; padding:30px; color:#888; font-size:11px;">Vault is empty. Add a track to populate it.</div>`;
+          listEl.innerHTML = `<div class="text-center py-8 text-brand-muted font-mono text-xs">Vault is empty. Add a track to populate it.</div>`;
           return;
         }
 
         tracks.forEach(t => {
           const item = document.createElement('div');
-          item.className = 'track-row';
+          item.className = 'bg-brand-card border border-brand-border p-3 rounded flex items-center justify-between hover:border-neutral-600 transition group';
           item.innerHTML = `
-            <div class="track-meta">
-              <button class="btn-play btn-play-track" data-id="${t.id}">▶</button>
+            <div class="flex items-center gap-3">
+              <button class="btn-play-track w-7 h-7 bg-white text-black rounded-full flex items-center justify-center font-bold text-xs" data-id="${t.id}">▶</button>
               <div>
-                <div style="font-size:12px; font-weight:bold;">${t.title}</div>
-                <div style="font-size:10px; color:#888;">${t.genre}</div>
+                <div class="font-bold text-xs">${t.title}</div>
+                <div class="text-[10px] text-brand-muted font-mono">${t.genre}</div>
               </div>
             </div>
-            <div style="display:flex; align-items:center; gap:12px;">
-              <span class="tag">${t.bpm} BPM</span>
-              <span class="tag">${t.key}</span>
-              <button class="btn-del-track btn" style="color:#ff4444; border:none; padding:2px 6px;" data-id="${t.id}">✕</button>
+            <div class="flex items-center gap-4">
+              <div class="flex gap-2 font-mono text-[10px]">
+                <span class="bg-brand-black px-2 py-0.5 border border-brand-border rounded text-neutral-300">${t.bpm} BPM</span>
+                <span class="bg-brand-black px-2 py-0.5 border border-brand-border rounded text-neutral-300">${t.key}</span>
+              </div>
+              <button class="btn-del-track text-brand-muted hover:text-red-500 font-mono text-xs opacity-0 group-hover:opacity-100 transition" data-id="${t.id}">✕</button>
             </div>
           `;
 
@@ -613,6 +633,7 @@
               this.goHome();
             }
           } catch (err) { alert('Failed to parse backup file'); }
+          e.target.value = '';
         };
         reader.readAsText(file);
       }
