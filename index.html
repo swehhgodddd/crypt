@@ -42,7 +42,7 @@
   <script src="https://unpkg.com/wavesurfer.js@7"></script>
   <!-- LocalForage (IndexedDB Wrapper) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-  <!-- Cropper.js -->
+  <!-- Cropper.js per Crop/Rotazione immagini -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
@@ -50,8 +50,8 @@
     body {
       background-color: #0a0a0a;
       color: #f5f5f5;
-      /* Mantiene lo stile app ma permette i tap nativi */
-      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
     }
     ::-webkit-scrollbar {
       width: 4px;
@@ -75,11 +75,16 @@
   <header class="sticky top-0 z-30 bg-brand-black/80 backdrop-blur-md border-b border-brand-border px-4 py-3 flex justify-between items-center">
     <div class="flex items-center gap-3 cursor-pointer" id="btn-logo">
       <div class="w-8 h-8 bg-white text-black font-black font-mono flex items-center justify-center text-xl tracking-tighter">C</div>
-      <h1 class="text-xl font-bold tracking-widest font-mono">CRYPT<span class="text-xs text-brand-muted font-normal ml-1">v1.6</span></h1>
+      <h1 class="text-xl font-bold tracking-widest font-mono">CRYPT<span class="text-xs text-brand-muted font-normal ml-1">v1.2</span></h1>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- Search & Quick Actions -->
     <div class="flex items-center gap-2">
+      <div class="relative hidden sm:block">
+        <input type="text" id="global-search" placeholder="Search BPM, Key, Genre..." 
+               class="bg-brand-card border border-brand-border px-3 py-1.5 pl-8 text-xs rounded focus:outline-none focus:border-white w-48 font-mono">
+        <span class="absolute left-2.5 top-2 text-brand-muted text-xs">🔍</span>
+      </div>
       <button id="btn-export" title="Export Backup" class="p-2 bg-brand-card border border-brand-border rounded hover:bg-neutral-800 transition">💾</button>
       <button id="btn-import-trigger" title="Import Backup" class="p-2 bg-brand-card border border-brand-border rounded hover:bg-neutral-800 transition">📥</button>
       <input type="file" id="import-file-input" accept=".json" class="hidden">
@@ -169,10 +174,13 @@
         </div>
         <div>
           <label class="text-[10px] text-brand-muted font-mono block mb-1">COVER IMAGE</label>
-          <div class="flex flex-col gap-2">
-            <div id="col-cover-preview" class="w-16 h-16 bg-brand-black border border-brand-border rounded bg-cover bg-center flex-shrink-0 hidden"></div>
-            <!-- Input file nativo, visibile e facile da cliccare -->
-            <input type="file" id="col-cover-file" accept="image/*" class="w-full text-xs text-brand-muted file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-mono file:bg-brand-border file:text-white hover:file:bg-neutral-700 cursor-pointer">
+          <div class="flex items-center gap-3">
+            <div id="col-cover-preview" class="w-12 h-12 bg-brand-black border border-brand-border rounded bg-cover bg-center flex-shrink-0"></div>
+            <!-- Pulsante visibile ed esplicito per Mobile -->
+            <label for="col-cover-file" class="cursor-pointer bg-brand-border hover:bg-neutral-700 text-white text-xs px-3 py-2 rounded font-mono">
+              Choose Image
+            </label>
+            <input type="file" id="col-cover-file" accept="image/*" class="hidden">
           </div>
         </div>
       </div>
@@ -185,11 +193,11 @@
   </div>
 
   <!-- MODAL: CROP IMAGE -->
-  <div id="modal-crop" class="fixed inset-0 bg-black/95 backdrop-blur-md z-[60] flex items-center justify-center p-4 hidden">
+  <div id="modal-crop" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-brand-card border border-brand-border p-4 rounded w-full max-w-lg space-y-3">
       <h3 class="font-mono font-bold text-xs tracking-wide">ADJUST COVER IMAGE</h3>
       
-      <div class="max-h-[50vh] overflow-hidden bg-black flex items-center justify-center rounded">
+      <div class="max-h-[60vh] overflow-hidden bg-black flex items-center justify-center rounded">
         <img id="crop-image-target" src="" class="max-w-full">
       </div>
 
@@ -201,7 +209,7 @@
         </div>
         <div class="flex gap-2">
           <button id="btn-cancel-crop" class="px-3 py-1 text-xs text-brand-muted font-mono">CANCEL</button>
-          <button id="btn-apply-crop" class="bg-white text-black px-4 py-1.5 text-xs font-mono font-bold rounded">APPLY</button>
+          <button id="btn-apply-crop" class="bg-white text-black px-4 py-1 text-xs font-mono font-bold rounded">APPLY</button>
         </div>
       </div>
     </div>
@@ -215,7 +223,7 @@
       <div class="space-y-3">
         <div>
           <label class="text-[10px] text-brand-muted font-mono block mb-1">AUDIO FILE (MP3, WAV, etc)</label>
-          <input type="file" id="track-audio-file" accept="audio/*" class="w-full text-xs text-brand-muted file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-mono file:bg-brand-border file:text-white hover:file:bg-neutral-700 cursor-pointer">
+          <input type="file" id="track-audio-file" accept="audio/*" class="w-full bg-brand-black border border-brand-border p-1.5 text-xs rounded text-brand-muted">
         </div>
         <div>
           <label class="text-[10px] text-brand-muted font-mono block mb-1">TITLE</label>
@@ -245,18 +253,28 @@
   </div>
 
   <script>
+    // APP STATE & INITIALIZATION
     const app = {
-      data: { collections: [], tracks: [] },
+      data: {
+        collections: [],
+        tracks: []
+      },
       currentCollectionId: null,
+      currentTrack: null,
       wavesurfer: null,
       cropper: null,
       tempCroppedImageBase64: null,
       editingCollectionId: null,
 
       async init() {
+        // LocalForage Config
         localforage.config({ name: 'CRYPT_STORAGE', storeName: 'crypt_data' });
+
+        // Load data from IndexedDB
         const savedData = await localforage.getItem('crypt_app_data');
-        if (savedData) this.data = savedData;
+        if (savedData) {
+          this.data = savedData;
+        }
 
         this.initWaveSurfer();
         this.bindEvents();
@@ -286,22 +304,29 @@
       },
 
       bindEvents() {
+        // Navigation
         document.getElementById('btn-logo').onclick = () => this.goHome();
         document.getElementById('nav-home').onclick = () => this.goHome();
 
+        // Modals Collection
         document.getElementById('btn-open-create-collection').onclick = () => this.openCollectionModal();
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
-        document.getElementById('col-cover-file').onchange = (e) => {
+        // Cover Input & Crop Handler
+        const coverInput = document.getElementById('col-cover-file');
+        coverInput.onchange = (e) => {
           const file = e.target.files[0];
           if (file) {
             const reader = new FileReader();
-            reader.onload = (event) => this.openCropModal(event.target.result);
+            reader.onload = (event) => {
+              this.openCropModal(event.target.result);
+            };
             reader.readAsDataURL(file);
           }
         };
 
+        // Cropper Actions
         document.getElementById('btn-rotate-left').onclick = () => this.cropper && this.cropper.rotate(-90);
         document.getElementById('btn-rotate-right').onclick = () => this.cropper && this.cropper.rotate(90);
         document.getElementById('btn-cancel-crop').onclick = () => this.closeCropModal();
@@ -309,17 +334,17 @@
           if (this.cropper) {
             const canvas = this.cropper.getCroppedCanvas({ width: 500, height: 500 });
             this.tempCroppedImageBase64 = canvas.toDataURL('image/jpeg', 0.85);
-            const preview = document.getElementById('col-cover-preview');
-            preview.style.backgroundImage = `url(${this.tempCroppedImageBase64})`;
-            preview.classList.remove('hidden');
+            document.getElementById('col-cover-preview').style.backgroundImage = `url(${this.tempCroppedImageBase64})`;
             this.closeCropModal();
           }
         };
 
+        // Modals Track
         document.getElementById('btn-open-add-track').onclick = () => this.openTrackModal();
         document.getElementById('btn-cancel-track').onclick = () => this.closeTrackModal();
         document.getElementById('btn-save-track').onclick = () => this.saveTrack();
 
+        // Player Controls
         document.getElementById('player-play-btn').onclick = () => {
           if (this.wavesurfer) {
             this.wavesurfer.playPause();
@@ -327,12 +352,13 @@
           }
         };
 
+        // Backup Export / Import
         document.getElementById('btn-export').onclick = () => this.exportBackup();
-        
-        document.getElementById('btn-import-trigger').onclick = () => {
-          document.getElementById('import-file-input').click();
-        };
+        document.getElementById('btn-import-trigger').onclick = () => document.getElementById('import-file-input').click();
         document.getElementById('import-file-input').onchange = (e) => this.importBackup(e);
+
+        // Search
+        document.getElementById('global-search').oninput = (e) => this.handleSearch(e.target.value);
       },
 
       openCropModal(imageSrc) {
@@ -341,13 +367,19 @@
         document.getElementById('modal-crop').classList.remove('hidden');
 
         if (this.cropper) this.cropper.destroy();
-        this.cropper = new Cropper(cropImg, { aspectRatio: 1, viewMode: 1, background: false });
+        this.cropper = new Cropper(cropImg, {
+          aspectRatio: 1,
+          viewMode: 1,
+          background: false
+        });
       },
 
       closeCropModal() {
         document.getElementById('modal-crop').classList.add('hidden');
-        if (this.cropper) { this.cropper.destroy(); this.cropper = null; }
-        document.getElementById('col-cover-file').value = '';
+        if (this.cropper) {
+          this.cropper.destroy();
+          this.cropper = null;
+        }
       },
 
       async persistData() {
@@ -367,27 +399,19 @@
         this.tempCroppedImageBase64 = null;
         const modal = document.getElementById('modal-collection');
         const titleEl = document.getElementById('modal-collection-title');
-        const preview = document.getElementById('col-cover-preview');
         
         if (id) {
           titleEl.innerText = 'EDIT COLLECTION';
           const col = this.data.collections.find(c => c.id === id);
           document.getElementById('col-title-input').value = col.title;
           document.getElementById('col-desc-input').value = col.desc || '';
-          if (col.cover) {
-            preview.style.backgroundImage = `url(${col.cover})`;
-            preview.classList.remove('hidden');
-            this.tempCroppedImageBase64 = col.cover;
-          } else {
-            preview.style.backgroundImage = 'none';
-            preview.classList.add('hidden');
-          }
+          document.getElementById('col-cover-preview').style.backgroundImage = col.cover ? `url(${col.cover})` : 'none';
+          this.tempCroppedImageBase64 = col.cover;
         } else {
           titleEl.innerText = 'NEW COLLECTION';
           document.getElementById('col-title-input').value = '';
           document.getElementById('col-desc-input').value = '';
-          preview.style.backgroundImage = 'none';
-          preview.classList.add('hidden');
+          document.getElementById('col-cover-preview').style.backgroundImage = 'none';
         }
         modal.classList.remove('hidden');
       },
@@ -400,6 +424,7 @@
       async saveCollection() {
         const title = document.getElementById('col-title-input').value.trim();
         const desc = document.getElementById('col-desc-input').value.trim();
+
         if (!title) return alert('Title is required');
 
         if (this.editingCollectionId) {
@@ -408,11 +433,13 @@
           col.desc = desc;
           if (this.tempCroppedImageBase64) col.cover = this.tempCroppedImageBase64;
         } else {
-          this.data.collections.push({
+          const newCol = {
             id: 'col_' + Date.now(),
-            title, desc,
+            title,
+            desc,
             cover: this.tempCroppedImageBase64 || null
-          });
+          };
+          this.data.collections.push(newCol);
         }
 
         await this.persistData();
@@ -454,7 +481,7 @@
         const reader = new FileReader();
 
         reader.onload = async (e) => {
-          this.data.tracks.push({
+          const newTrack = {
             id: 'track_' + Date.now(),
             collectionId: this.currentCollectionId,
             title: title || file.name.replace(/\.[^/.]+$/, ""),
@@ -462,8 +489,9 @@
             key: key || '---',
             genre: genre || '---',
             audioData: e.target.result
-          });
+          };
 
+          this.data.tracks.push(newTrack);
           await this.persistData();
           this.closeTrackModal();
           this.renderCollectionDetail(this.currentCollectionId);
@@ -473,20 +501,27 @@
       },
 
       async deleteTrack(id) {
-        if (!confirm("Delete track?")) return;
+        if (!confirm("Delete this track?")) return;
         this.data.tracks = this.data.tracks.filter(t => t.id !== id);
         await this.persistData();
         this.renderCollectionDetail(this.currentCollectionId);
       },
 
       playTrack(track) {
-        document.getElementById('global-player').classList.remove('hidden');
+        this.currentTrack = track;
+        const player = document.getElementById('global-player');
+        player.classList.remove('hidden');
+
         document.getElementById('player-title').innerText = track.title;
         document.getElementById('player-sub').innerText = `${track.bpm} BPM | ${track.key} | ${track.genre}`;
 
         const parentCol = this.data.collections.find(c => c.id === track.collectionId);
         const coverEl = document.getElementById('player-cover');
-        coverEl.style.backgroundImage = (parentCol && parentCol.cover) ? `url(${parentCol.cover})` : 'none';
+        if (parentCol && parentCol.cover) {
+          coverEl.style.backgroundImage = `url(${parentCol.cover})`;
+        } else {
+          coverEl.style.backgroundImage = 'none';
+        }
 
         this.wavesurfer.load(track.audioData);
         this.wavesurfer.on('ready', () => {
@@ -496,8 +531,11 @@
       },
 
       render() {
-        if (this.currentCollectionId) this.renderCollectionDetail(this.currentCollectionId);
-        else this.renderCollectionsGrid();
+        if (this.currentCollectionId) {
+          this.renderCollectionDetail(this.currentCollectionId);
+        } else {
+          this.renderCollectionsGrid();
+        }
       },
 
       renderCollectionsGrid() {
@@ -516,7 +554,9 @@
           
           card.innerHTML = `
             <div>
-              <div class="aspect-square bg-brand-black border border-brand-border rounded mb-3 bg-cover bg-center" style="background-image:${col.cover ? `url(${col.cover})` : 'none'}"></div>
+              <div class="aspect-square bg-brand-black border border-brand-border rounded mb-3 bg-cover bg-center" 
+                   style="background-image: ${col.cover ? `url(${col.cover})` : 'none'}">
+              </div>
               <h3 class="font-bold text-xs truncate group-hover:text-white font-mono">${col.title}</h3>
               <p class="text-[10px] text-brand-muted truncate mt-0.5">${col.desc || 'No description'}</p>
             </div>
@@ -544,6 +584,7 @@
         document.getElementById('view-collections').classList.add('hidden');
         document.getElementById('view-collection-detail').classList.remove('hidden');
         document.getElementById('breadcrumb').classList.remove('hidden');
+
         this.renderCollectionDetail(id);
       },
 
@@ -553,9 +594,11 @@
 
         document.getElementById('nav-current').innerText = col.title;
 
+        // Render Header
         const headerEl = document.getElementById('collection-header-detail');
         headerEl.innerHTML = `
-          <div class="w-24 h-24 sm:w-32 sm:h-32 bg-brand-black border border-brand-border rounded bg-cover bg-center flex-shrink-0" style="background-image:${col.cover ? `url(${col.cover})` : 'none'}"></div>
+          <div class="w-24 h-24 sm:w-32 sm:h-32 bg-brand-black border border-brand-border rounded bg-cover bg-center flex-shrink-0" 
+               style="background-image: ${col.cover ? `url(${col.cover})` : 'none'}"></div>
           <div class="flex-1">
             <h2 class="text-xl font-bold font-mono tracking-wide">${col.title}</h2>
             <p class="text-xs text-brand-muted mt-1">${col.desc || 'No description'}</p>
@@ -565,6 +608,7 @@
 
         document.getElementById('btn-delete-col').onclick = () => this.deleteCollection(col.id);
 
+        // Render Tracks
         const listEl = document.getElementById('tracks-list');
         listEl.innerHTML = '';
 
@@ -586,6 +630,7 @@
                 <div class="text-[10px] text-brand-muted font-mono">${t.genre}</div>
               </div>
             </div>
+
             <div class="flex items-center gap-4">
               <div class="flex gap-2 font-mono text-[10px]">
                 <span class="bg-brand-black px-2 py-0.5 border border-brand-border rounded text-neutral-300">${t.bpm} BPM</span>
@@ -608,7 +653,7 @@
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       },
 
-      exportBackup() {
+      async exportBackup() {
         const jsonStr = JSON.stringify(this.data);
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -618,7 +663,7 @@
         a.click();
       },
 
-      importBackup(e) {
+      async importBackup(e) {
         const file = e.target.files[0];
         if (!file) return;
 
@@ -631,15 +676,21 @@
               await this.persistData();
               alert('Backup imported successfully!');
               this.goHome();
+            } else {
+              alert('Invalid backup structure');
             }
-          } catch (err) { alert('Failed to parse backup file'); }
-          e.target.value = '';
+          } catch (err) {
+            alert('Failed to parse backup file');
+          }
         };
         reader.readAsText(file);
       }
     };
 
-    document.addEventListener('DOMContentLoaded', () => app.init());
+    // Init App
+    document.addEventListener('DOMContentLoaded', () => {
+      app.init();
+    });
   </script>
 
   <!-- Service Worker PWA -->
