@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Crypt">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="https://placehold.co/192x192/000000/ffffff?text=C">
+    
+    <title>CRYPT.</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        black: '#000000',
+                        white: '#ffffff',
+                        zinc: {
+                            900: '#111111',
+                            800: '#222222',
+                            700: '#333333',
+                            400: '#888888',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            -webkit-tap-highlight-color: transparent;
+            /* Hide scrollbar */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        body::-webkit-scrollbar { display: none; }
+        
+        .glass-panel {
+            background: rgba(17, 17, 17, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-top: 1px solid #333;
+        }
+
+        .cover-img {
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Wavesurfer container adjustments */
+        #waveform { width: 100%; height: 40px; }
+        
+        /* Drag & Drop Visuals */
+        .drag-over {
+            border-color: #ffffff !important;
+            background-color: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        /* File Input Styling */
+        input[type="file"]::file-selector-button {
+            border: 1px solid #333;
+            background: #111;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background: #fff;
+            color: #000;
+        }
+        
+        /* Hide element utility */
+        .d-none { display: none !important; }
+    </style>
+</head>
+<body class="h-[100dvh] flex flex-col font-sans overflow-hidden antialiased">
+
+    <!-- Top Navbar -->
+    <header class="w-full flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 flex-shrink-0 z-20 relative bg-black/80 backdrop-blur-md border-b border-zinc-900">
+        <h1 class="text-xl sm:text-2xl font-bold tracking-[0.2em] cursor-pointer" onclick="app.goHome()">CRYPT.</h1>
+        
+        <div class="flex items-center gap-3 sm:gap-6">
+            <!-- Search Bar -->
+            <div class="relative hidden sm:flex items-center">
+                <i class="ph ph-magnifying-glass absolute left-3 text-zinc-500"></i>
+                <input type="text" id="search-input" placeholder="Search title, bpm, key..." oninput="app.handleSearch(this.value)"
+                    class="bg-zinc-900 border border-zinc-800 rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-white transition-colors w-48 focus:w-64 text-white">
+            </div>
+            
+            <!-- Mobile Search Toggle -->
+            <button onclick="document.getElementById('mobile-search').classList.toggle('hidden')" class="sm:hidden text-zinc-400 hover:text-white">
+                <i class="ph ph-magnifying-glass text-2xl"></i>
+            </button>
+
+            <!-- Backup / Settings Menu -->
+            <div class="relative group">
+                <button class="text-zinc-400 hover:text-white transition-colors flex items-center gap-1 p-2">
+                    <i class="ph ph-dots-three-vertical text-2xl"></i>
+                </button>
+                <!-- Dropdown -->
+                <div class="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col overflow-hidden">
+                    <button onclick="app.exportBackup()" class="flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-zinc-800 transition-colors">
+                        <i class="ph ph-download-simple"></i> Export Backup
+                    </button>
+                    <label class="flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-zinc-800 transition-colors cursor-pointer">
+                        <i class="ph ph-upload-simple"></i> Import Backup
+                        <input type="file" accept=".json" class="hidden" onchange="app.importBackup(this)">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Search Bar (Collapsible) -->
+    <div id="mobile-search" class="hidden sm:hidden px-4 pb-4 border-b border-zinc-900 z-10 bg-black">
+        <div class="relative flex items-center">
+            <i class="ph ph-magnifying-glass absolute left-3 text-zinc-500"></i>
+            <input type="text" placeholder="Search title, bpm, key..." oninput="app.handleSearch(this.value)"
+                class="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-white text-white">
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main id="main-scroll-area" class="flex-1 overflow-y-auto px-4 sm:px-8 pb-32">
+        
+        <!-- View: Home (Collections Grid) -->
+        <div id="view-home" class="block animate-fade-in py-6">
+            <div class="flex items-end justify-between mb-8">
+                <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight">Your Crypt</h2>
+                <span id="collection-count" class="text-zinc-400 text-sm font-mono">0</span>
+            </div>
+            
+            <div id="collections-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                <!-- Create Collection Card (Drag & Drop Zone) -->
+                <div id="dropzone-collection" onclick="app.openCollectionModal()" class="group cursor-pointer flex flex-col gap-3">
+                    <div class="aspect-square bg-black border border-dashed border-zinc-700 rounded-lg flex flex-col items-center justify-center text-zinc-500 hover:border-white hover:text-white transition-colors relative">
+                        <i class="ph ph-plus text-4xl mb-2 group-hover:scale-110 transition-transform"></i>
+                        <span class="text-xs font-medium uppercase tracking-widest text-center px-2">New Collection<br><span class="hidden sm:inline lowercase text-[10px] opacity-60">(or drop image here)</span></span>
+                    </div>
+                </div>
+                <!-- Rendered Collections go here -->
+            </div>
+        </div>
+
+        <!-- View: Collection Detail -->
+        <div id="view-collection" class="hidden animate-fade-in max-w-6xl mx-auto py-6">
+            <button onclick="app.goHome()" class="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors mb-8 group w-max">
+                <i class="ph ph-arrow-left transition-transform group-hover:-translate-x-1"></i>
+                Back
+            </button>
+
+            <!-- Collection Header -->
+            <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 mb-8 sm:mb-12 items-start relative group/header">
+                <!-- Dropzone for updating cover -->
+                <div id="dropzone-cover-update" class="w-32 h-32 sm:w-56 sm:h-56 flex-shrink-0 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden relative shadow-2xl cursor-pointer group-hover/header:border-zinc-500 transition-colors">
+                    <img id="detail-cover" src="" alt="Cover" class="cover-img hidden">
+                    <div id="detail-cover-placeholder" class="w-full h-full flex items-center justify-center text-zinc-700">
+                        <i class="ph ph-vinyl-record text-4xl sm:text-6xl"></i>
+                    </div>
+                    <!-- Hover overlay for cover -->
+                    <div class="absolute inset-0 bg-black/60 opacity-0 group-hover/header:opacity-100 transition-opacity flex flex-col items-center justify-center text-xs text-white" onclick="app.editActiveCollection()">
+                        <i class="ph ph-pencil-simple text-2xl mb-1"></i>
+                        Edit
+                    </div>
+                </div>
+                
+                <div class="flex flex-col justify-end pt-2 w-full">
+                    <div class="flex justify-between items-start w-full">
+                        <div>
+                            <span class="text-[10px] sm:text-xs font-bold tracking-widest text-zinc-400 uppercase mb-2 block font-mono">Collection</span>
+                            <h2 id="detail-title" class="text-3xl sm:text-5xl font-bold mb-3 tracking-tight break-words">Title</h2>
+                        </div>
+                        <button onclick="app.deleteActiveCollection()" class="text-zinc-600 hover:text-red-500 p-2 opacity-0 group-hover/header:opacity-100 transition-opacity sm:block hidden" title="Delete Collection">
+                            <i class="ph ph-trash text-xl"></i>
+                        </button>
+                    </div>
+                    <p id="detail-desc" class="text-zinc-400 max-w-2xl text-sm sm:text-base mb-6 leading-relaxed">Desc</p>
+                    
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button onclick="app.playCollection()" class="bg-white text-black font-semibold px-6 py-2 rounded-full hover:scale-105 transition-transform flex items-center gap-2 text-sm sm:text-base">
+                            <i class="ph-fill ph-play-circle text-lg"></i>
+                            Play All
+                        </button>
+                        <button onclick="app.openTrackModal()" class="border border-zinc-700 hover:border-white px-6 py-2 rounded-full transition-colors flex items-center gap-2 text-sm sm:text-base">
+                            <i class="ph ph-plus"></i>
+                            Add Track
+                        </button>
+                         <button onclick="app.deleteActiveCollection()" class="sm:hidden border border-red-900/30 text-red-500 hover:bg-red-900/20 px-6 py-2 rounded-full transition-colors flex items-center gap-2 text-sm">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tracks List (Drag & Drop Zone) -->
+            <div id="dropzone-track" class="border-t border-zinc-800 pt-6 rounded-xl transition-all">
+                <div class="flex text-[10px] sm:text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4 px-2 sm:px-4">
+                    <div class="w-8 sm:w-12 text-center">#</div>
+                    <div class="flex-1">Title</div>
+                    <div class="w-16 sm:w-20 text-right">BPM</div>
+                    <div class="w-12 sm:w-16 text-right">Key</div>
+                    <div class="hidden sm:block w-24 text-right">Genre</div>
+                    <div class="w-10 sm:w-16"></div> <!-- Actions -->
+                </div>
+                
+                <div id="tracks-list" class="flex flex-col gap-1">
+                    <!-- Rendered Tracks -->
+                </div>
+                
+                <div id="empty-tracks" class="hidden flex-col items-center py-16 text-zinc-500 border border-dashed border-zinc-800 rounded-lg mt-4 pointer-events-none">
+                    <i class="ph ph-waveform text-4xl mb-2 opacity-50"></i>
+                    <p class="text-sm">Empty collection.</p>
+                    <p class="text-xs mt-1">Tap 'Add Track' or drag audio files here.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Search Results -->
+        <div id="view-search" class="hidden animate-fade-in py-6">
+            <h2 class="text-2xl font-semibold mb-6">Search Results</h2>
+            <div id="search-results-list" class="flex flex-col gap-2">
+                <!-- Results -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Global Upload FAB (Mobile only, quick upload to any collection) -->
+    <button onclick="app.openTrackModal()" class="sm:hidden fixed bottom-28 right-6 w-14 h-14 bg-white text-black rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95 transition-all z-30">
+        <i class="ph ph-plus text-2xl font-bold"></i>
+    </button>
+
+    <!-- Bottom Player -->
+    <!-- Persists globally, initially hidden if no track selected -->
+    <div id="player-bar" class="fixed bottom-0 left-0 w-full glass-panel z-40 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-2 sm:py-0 sm:h-24 gap-2 sm:gap-6 transform translate-y-full transition-transform duration-300">
+        
+        <!-- Track Info -->
+        <div class="flex items-center gap-3 sm:gap-4 w-full sm:w-1/4 sm:min-w-[200px] justify-between sm:justify-start">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <div class="w-10 h-10 sm:w-14 sm:h-14 bg-zinc-800 rounded flex-shrink-0 overflow-hidden shadow-md">
+                    <img id="player-cover" src="" class="cover-img hidden">
+                    <div id="player-cover-fallback" class="w-full h-full flex items-center justify-center text-zinc-600">
+                        <i class="ph ph-music-note"></i>
+                    </div>
+                </div>
+                <div class="flex flex-col overflow-hidden">
+                    <span id="player-title" class="font-semibold text-sm sm:text-base truncate">Select a track</span>
+                    <span id="player-collection" class="text-xs text-zinc-400 truncate">--</span>
+                </div>
+            </div>
+            
+            <!-- Mobile Controls (Play/Pause) -->
+            <div class="sm:hidden flex items-center gap-2">
+                <button onclick="app.togglePlay()" class="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-lg active:scale-95">
+                    <i id="play-icon-mobile" class="ph-fill ph-play text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Desktop Controls & Waveform -->
+        <div class="flex-1 w-full flex flex-col-reverse sm:flex-row items-center gap-2 sm:gap-6 max-w-4xl">
+            <!-- Controls Desktop -->
+            <div class="hidden sm:flex items-center gap-4 text-white">
+                <button onclick="app.prevTrack()" class="hover:text-zinc-400 transition-colors"><i class="ph-fill ph-skip-back text-2xl"></i></button>
+                <button onclick="app.togglePlay()" class="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform shadow-lg">
+                    <i id="play-icon" class="ph-fill ph-play text-xl"></i>
+                </button>
+                <button onclick="app.nextTrack()" class="hover:text-zinc-400 transition-colors"><i class="ph-fill ph-skip-forward text-2xl"></i></button>
+            </div>
+            
+            <!-- Waveform Container -->
+            <div class="w-full relative h-10 sm:h-12 flex items-center bg-zinc-900/50 sm:bg-transparent rounded-lg sm:rounded-none px-2 sm:px-0">
+                <div id="waveform" class="w-full cursor-pointer"></div>
+                <div id="waveform-loading" class="absolute inset-0 flex items-center justify-center bg-transparent pointer-events-none hidden">
+                    <i class="ph ph-spinner animate-spin text-zinc-500"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Extra Meta (Desktop only) -->
+        <div class="hidden sm:flex w-1/4 justify-end items-center gap-3 text-[10px] sm:text-xs font-mono text-zinc-400">
+            <div class="flex flex-col items-end">
+                <span class="text-zinc-600 text-[8px] uppercase tracking-widest">BPM</span>
+                <span id="player-bpm" class="text-white">--</span>
+            </div>
+            <div class="flex flex-col items-end border-l border-zinc-800 pl-3">
+                <span class="text-zinc-600 text-[8px] uppercase tracking-widest">KEY</span>
+                <span id="player-key" class="text-white">--</span>
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Modals Overlay -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+        
+        <!-- Collection Modal (Create/Edit) -->
+        <div id="modal-collection" class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md p-6 hidden flex-col gap-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-2">
+                <h3 id="modal-col-title" class="text-xl font-semibold">New Collection</h3>
+                <button onclick="app.closeModals()" class="text-zinc-500 hover:text-white"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            
+            <input type="hidden" id="col-id">
+            
+            <div>
+                <label class="text-xs text-zinc-500 mb-1 block font-mono uppercase">Title *</label>
+                <input type="text" id="col-title" placeholder="e.g. Dark Beats Vol 1" class="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors">
+            </div>
+            
+            <div>
+                <label class="text-xs text-zinc-500 mb-1 block font-mono uppercase">Description</label>
+                <textarea id="col-desc" placeholder="Optional vibes..." class="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors h-20 resize-none"></textarea>
+            </div>
+            
+            <div>
+                <label class="text-xs text-zinc-500 mb-1 block font-mono uppercase">Cover Image</label>
+                <div class="border border-zinc-800 border-dashed rounded-lg p-4 flex flex-col items-center justify-center gap-2 bg-black/50">
+                    <i class="ph ph-image text-2xl text-zinc-500"></i>
+                    <input type="file" id="col-cover" accept="image/*" class="w-full mt-1">
+                </div>
+            </div>
+
+            <button onclick="app.saveCollection()" class="w-full bg-white text-black font-semibold py-3 rounded-lg mt-4 hover:bg-zinc-200 transition-colors">Save Collection</button>
+        </div>
+
+        <!-- Track Modal (Create/Edit) -->
+        <div id="modal-track" class="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 hidden flex-col gap-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-2">
+                <h3 id="modal-track-header" class="text-xl font-semibold">Add Track</h3>
+                <button onclick="app.closeModals()" class="text-zinc-500 hover:text-white"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            
+            <input type="hidden" id="track-id">
+            
+            <!-- Audio File Input (Hidden on Edit) -->
+            <div id="track-file-container">
+                <label class="text-xs text-zinc-500 mb-1 block font-mono uppercase">Audio File *</label>
+                <div class="border border-zinc-800 border-dashed rounded-lg p-5 flex flex-col items-center justify-center gap-2 bg-black hover:border-zinc-500 transition-colors">
+                    <input type="file" id="track-file" accept="audio/*" class="w-full text-sm" onchange="app.autoFillTitle(this)">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs text-zinc-500 mb-1 block font-mono uppercase">Title *</label>
+                <input type="text" id="track-title" placeholder="Track Name" class="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-white transition-colors">
+            </div>
+            
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="text-[10px] sm:text-xs text-zinc-500 mb-1 block font-mono uppercase">BPM</label>
+                    <input type="number" id="track-bpm" placeholder="140" class="w-full bg-black border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-white font-mono text-sm">
+                </div>
+                <div>
+                    <label class="text-[10px] sm:text-xs text-zinc-500 mb-1 block font-mono uppercase">Key</label>
+                    <input type="text" id="track-key" placeholder="Cm" class="w-full bg-black border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-white font-mono text-sm">
+                </div>
+                <div>
+                    <label class="text-[10px] sm:text-xs text-zinc-500 mb-1 block font-mono uppercase">Genre</label>
+                    <input type="text" id="track-genre" placeholder="Trap" class="w-full bg-black border border-zinc-800 rounded-lg px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-white font-mono text-sm">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-xs text-zinc-500 mb-1 block font-mono uppercase">Collection</label>
+                <select id="track-collection" class="w-full bg-black border border-zinc-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white appearance-none cursor-pointer">
+                    <!-- Options -->
+                </select>
+            </div>
+
+            <button onclick="app.saveTrack()" class="w-full bg-white text-black font-semibold py-3 rounded-lg mt-4 hover:bg-zinc-200 transition-colors">
+                Save Track
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/localforage@1.10.0/dist/localforage.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    
+    <script>
+        const app = {
+            data: {
+                collections: [], // { id, title, desc, coverBlob, createdAt }
+                tracks: []       // { id, collectionId, title, bpm, key, genre, audioBlob, createdAt }
+            },
+            state: {
+                currentView: 'home',
+                activeCollectionId: null,
+                currentTrackIndex: -1,
+                playlist: [], 
+                wavesurfer: null,
+                isPlaying: false
+            },
+
+            // --- Initialization ---
+            async init() {
+                // Configure localForage to handle Blobs efficiently
+                localforage.config({
+                    name: 'CryptApp',
+                    storeName: 'crypt_vault',
+                    description: 'Offline Music Vault'
+                });
+
+                await this.loadData();
+                this.initPlayer();
+                this.setupDragAndDrop();
+                this.renderHome();
+                
+                // Keyboard shortcuts (Space to play/pause)
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                        e.preventDefault();
+                        this.togglePlay();
+                    }
+                });
+            },
+
+            async loadData() {
+                try {
+                    const cols = await localforage.getItem('collections');
+                    const trks = await localforage.getItem('tracks');
+                    this.data.collections = cols || [];
+                    this.data.tracks = trks || [];
+                } catch (e) {
+                    console.error("Error loading data from LocalForage", e);
+                    this.data.collections = [];
+                    this.data.tracks = [];
+                }
+            },
+
+            async persistData() {
+                try {
+                    await localforage.setItem('collections', this.data.collections);
+                    await localforage.setItem('tracks', this.data.tracks);
+                } catch (e) {
+                    console.error("Error saving data to LocalForage", e);
+                    alert("Storage error. Your device might be full.");
+                }
+            },
+
+            // --- Navigation & Search ---
+            goHome() {
+                this.state.currentView = 'home';
+                this.state.activeCollectionId = null;
+                document.getElementById('search-input').value = '';
+                this.switchView('view-home');
+                this.renderHome();
+            },
+
+            openCollection(id) {
+                this.state.currentView = 'collection';
+                this.state.activeCollectionId = id;
+                this.switchView('view-collection');
+                this.renderCollectionDetail();
+            },
+
+            switchView(viewId) {
+                ['view-home', 'view-collection', 'view-search'].forEach(id => {
+                    document.getElementById(id).classList.add('hidden');
+                    document.getElementById(id).classList.remove('block');
+                });
+                document.getElementById(viewId).classList.remove('hidden');
+                document.getElementById(viewId).classList.add('block');
+                window.scrollTo(0, 0);
+            },
+
+            handleSearch(query) {
+                query = query.toLowerCase().trim();
+                if (!query) {
+                    if (this.state.currentView === 'collection') this.switchView('view-collection');
+                    else this.goHome();
+                    return;
+                }
+
+                this.switchView('view-search');
+                const resultsContainer = document.getElementById('search-results-list');
+                
+                // Filter Tracks
+                const trackMatches = this.data.tracks.filter(t => 
+                    t.title.toLowerCase().includes(query) || 
+                    (t.bpm && t.bpm.toString().includes(query)) ||
+                    (t.key && t.key.toLowerCase().includes(query)) ||
+                    (t.genre && t.genre.toLowerCase().includes(query))
+                );
+
+                if (trackMatches.length === 0) {
+                    resultsContainer.innerHTML = `<p class="text-zinc-500 font-mono text-sm py-4">No tracks found matching "${query}"</p>`;
+                    return;
+                }
+
+                resultsContainer.innerHTML = trackMatches.map(t => {
+                    const col = this.data.collections.find(c => c.id === t.collectionId);
+                    const colName = col ? col.title : 'Unknown';
+                    // We don't have the exact index in the collection playlist for direct play from search easily without building it, 
+                    // so clicking a search result will play it as a single track playlist.
+                    return `
+                        <div onclick="app.playSingleTrack('${t.id}')" class="flex flex-col sm:flex-row sm:items-center px-4 py-3 bg-zinc-900/50 hover:bg-zinc-800 rounded-lg cursor-pointer border border-zinc-800/50 hover:border-zinc-700 transition-colors gap-2 sm:gap-4">
+                            <div class="flex-1 overflow-hidden">
+                                <div class="font-medium text-white truncate text-sm sm:text-base">${t.title}</div>
+                                <div class="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">${colName}</div>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs font-mono text-zinc-400">
+                                <span class="bg-black px-2 py-1 rounded border border-zinc-800">${t.bpm || '--'} BPM</span>
+                                <span class="bg-black px-2 py-1 rounded border border-zinc-800">${t.key || '--'}</span>
+                                <span class="bg-black px-2 py-1 rounded border border-zinc-800 truncate max-w-[80px]">${t.genre || '--'}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            // --- Modals (Create/Edit) ---
+            openCollectionModal(editId = null) {
+                const titleEl = document.getElementById('modal-col-title');
+                const idInput = document.getElementById('col-id');
+                
+                if (editId) {
+                    const col = this.data.collections.find(c => c.id === editId);
+                    if(!col) return;
+                    titleEl.innerText = "Edit Collection";
+                    idInput.value = col.id;
+                    document.getElementById('col-title').value = col.title;
+                    document.getElementById('col-desc').value = col.desc || '';
+                } else {
+                    titleEl.innerText = "New Collection";
+                    idInput.value = '';
+                    document.getElementById('col-title').value = '';
+                    document.getElementById('col-desc').value = '';
+                }
+                
+                document.getElementById('col-cover').value = '';
+                this.showModal('modal-collection');
+            },
+
+            editActiveCollection() {
+                if(this.state.activeCollectionId) {
+                    this.openCollectionModal(this.state.activeCollectionId);
+                }
+            },
+
+            openTrackModal(editId = null) {
+                if (this.data.collections.length === 0) {
+                    alert("Please create a collection first!");
+                    this.openCollectionModal();
+                    return;
+                }
+
+                const titleEl = document.getElementById('modal-track-header');
+                const idInput = document.getElementById('track-id');
+                const fileContainer = document.getElementById('track-file-container');
+                const select = document.getElementById('track-collection');
+                
+                // Populate collections dropdown
+                select.innerHTML = this.data.collections.map(c => 
+                    `<option value="${c.id}" ${c.id === this.state.activeCollectionId ? 'selected' : ''}>${c.title}</option>`
+                ).join('');
+
+                if (editId) {
+                    const track = this.data.tracks.find(t => t.id === editId);
+                    if(!track) return;
+                    titleEl.innerText = "Edit Track";
+                    idInput.value = track.id;
+                    document.getElementById('track-title').value = track.title;
+                    document.getElementById('track-bpm').value = track.bpm || '';
+                    document.getElementById('track-key').value = track.key || '';
+                    document.getElementById('track-genre').value = track.genre || '';
+                    select.value = track.collectionId;
+                    fileContainer.classList.add('d-none'); // Hide file input on edit
+                } else {
+                    titleEl.innerText = "Add Track";
+                    idInput.value = '';
+                    document.getElementById('track-file').value = '';
+                    document.getElementById('track-title').value = '';
+                    document.getElementById('track-bpm').value = '';
+                    document.getElementById('track-key').value = '';
+                    document.getElementById('track-genre').value = '';
+                    fileContainer.classList.remove('d-none');
+                }
+
+                this.showModal('modal-track');
+            },
+
+            showModal(id) {
+                document.getElementById('modal-overlay').classList.remove('hidden');
+                document.getElementById('modal-overlay').classList.add('flex');
+                document.getElementById('modal-collection').classList.add('hidden');
+                document.getElementById('modal-track').classList.add('hidden');
+                document.getElementById(id).classList.remove('hidden');
+            },
+
+            closeModals() {
+                document.getElementById('modal-overlay').classList.add('hidden');
+                document.getElementById('modal-overlay').classList.remove('flex');
+            },
+
+            // --- Data Actions ---
+            autoFillTitle(input) {
+                if(input.files && input.files[0]) {
+                    let name = input.files[0].name.replace(/\.[^/.]+$/, ""); 
+                    document.getElementById('track-title').value = name;
+                }
+            },
+
+            async saveCollection() {
+                const id = document.getElementById('col-id').value;
+                const title = document.getElementById('col-title').value.trim();
+                const desc = document.getElementById('col-desc').value.trim();
+                const fileInput = document.getElementById('col-cover');
+                
+                if (!title) return alert("Title is required");
+
+                if (id) {
+                    // Edit existing
+                    const idx = this.data.collections.findIndex(c => c.id === id);
+                    this.data.collections[idx].title = title;
+                    this.data.collections[idx].desc = desc;
+                    if (fileInput.files[0]) {
+                        this.data.collections[idx].coverBlob = fileInput.files[0];
+                    }
+                } else {
+                    // Create new
+                    const newCol = {
+                        id: 'col_' + Date.now(),
+                        title,
+                        desc,
+                        coverBlob: fileInput.files[0] || null,
+                        createdAt: Date.now()
+                    };
+                    this.data.collections.push(newCol);
+                }
+
+                await this.persistData();
+                this.closeModals();
+                
+                if (this.state.currentView === 'home') this.renderHome();
+                if (this.state.currentView === 'collection' && this.state.activeCollectionId === id) this.renderCollectionDetail();
+            },
+
+            async saveTrack() {
+                const id = document.getElementById('track-id').value;
+                const title = document.getElementById('track-title').value.trim();
+                const bpm = document.getElementById('track-bpm').value.trim();
+                const key = document.getElementById('track-key').value.trim();
+                const genre = document.getElementById('track-genre').value.trim();
+                const collectionId = document.getElementById('track-collection').value;
+
+                if (!title) return alert("Title is required");
+
+                if (id) {
+                    // Edit
+                    const idx = this.data.tracks.findIndex(t => t.id === id);
+                    this.data.tracks[idx].title = title;
+                    this.data.tracks[idx].bpm = bpm;
+                    this.data.tracks[idx].key = key;
+                    this.data.tracks[idx].genre = genre;
+                    this.data.tracks[idx].collectionId = collectionId;
+                } else {
+                    // Create
+                    const fileInput = document.getElementById('track-file');
+                    if (!fileInput.files[0]) return alert("Please select an audio file");
+                    
+                    const newTrack = {
+                        id: 'trk_' + Date.now(),
+                        collectionId,
+                        title,
+                        bpm,
+                        key,
+                        genre,
+                        audioBlob: fileInput.files[0],
+                        createdAt: Date.now()
+                    };
+                    this.data.tracks.push(newTrack);
+                }
+
+                await this.persistData();
+                this.closeModals();
+                
+                if (this.state.currentView === 'collection') {
+                    if (this.state.activeCollectionId === collectionId) {
+                        this.renderCollectionDetail();
+                    }
+                }
+            },
+
+            async deleteActiveCollection() {
+                if(!confirm("Are you sure you want to delete this collection and ALL its tracks?")) return;
+                
+                const colId = this.state.activeCollectionId;
+                this.data.collections = this.data.collections.filter(c => c.id !== colId);
+                this.data.tracks = this.data.tracks.filter(t => t.collectionId !== colId);
+                
+                await this.persistData();
+                this.goHome();
+            },
+
+            async deleteTrack(e, trackId) {
+                e.stopPropagation();
+                if(!confirm("Delete this track?")) return;
+                
+                this.data.tracks = this.data.tracks.filter(t => t.id !== trackId);
+                await this.persistData();
+                this.renderCollectionDetail();
+            },
+            
+            editTrack(e, trackId) {
+                e.stopPropagation();
+                this.openTrackModal(trackId);
+            },
+
+            // --- Drag & Drop Implementation ---
+            setupDragAndDrop() {
+                // Utilities for preventing defaults
+                const preventDefaults = (e) => { e.preventDefault(); e.stopPropagation(); };
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    document.body.addEventListener(eventName, preventDefaults, false);
+                });
+
+                // --- Home: Drop Image to Create Collection ---
+                const dzCol = document.getElementById('dropzone-collection');
+                
+                dzCol.addEventListener('dragenter', () => dzCol.classList.add('drag-over'));
+                dzCol.addEventListener('dragleave', () => dzCol.classList.remove('drag-over'));
+                dzCol.addEventListener('drop', (e) => {
+                    dzCol.classList.remove('drag-over');
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        this.openCollectionModal();
+                        // Populate file input manually using DataTransfer (hacky but works for UI)
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        document.getElementById('col-cover').files = dt.files;
+                        document.getElementById('col-title').value = file.name.replace(/\.[^/.]+$/, "");
+                    }
+                });
+
+                // --- Collection: Drop Image to Update Cover ---
+                const dzCover = document.getElementById('dropzone-cover-update');
+                if(dzCover) {
+                    dzCover.addEventListener('dragenter', () => dzCover.classList.add('drag-over'));
+                    dzCover.addEventListener('dragleave', () => dzCover.classList.remove('drag-over'));
+                    dzCover.addEventListener('drop', async (e) => {
+                        dzCover.classList.remove('drag-over');
+                        const file = e.dataTransfer.files[0];
+                        if (file && file.type.startsWith('image/') && this.state.activeCollectionId) {
+                            const idx = this.data.collections.findIndex(c => c.id === this.state.activeCollectionId);
+                            if(idx > -1) {
+                                this.data.collections[idx].coverBlob = file;
+                                await this.persistData();
+                                this.renderCollectionDetail();
+                            }
+                        }
+                    });
+                }
+
+                // --- Collection: Drop Audio to Add Track ---
+                const dzTrack = document.getElementById('dropzone-track');
+                if(dzTrack) {
+                    dzTrack.addEventListener('dragenter', () => dzTrack.classList.add('drag-over'));
+                    dzTrack.addEventListener('dragleave', () => dzTrack.classList.remove('drag-over'));
+                    dzTrack.addEventListener('drop', async (e) => {
+                        dzTrack.classList.remove('drag-over');
+                        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'));
+                        if (files.length > 0 && this.state.activeCollectionId) {
+                            for (let file of files) {
+                                const newTrack = {
+                                    id: 'trk_' + Date.now() + Math.floor(Math.random()*1000),
+                                    collectionId: this.state.activeCollectionId,
+                                    title: file.name.replace(/\.[^/.]+$/, ""),
+                                    bpm: '', key: '', genre: '',
+                                    audioBlob: file,
+                                    createdAt: Date.now()
+                                };
+                                this.data.tracks.push(newTrack);
+                            }
+                            await this.persistData();
+                            this.renderCollectionDetail();
+                        }
+                    });
+                }
+            },
+
+            // --- Rendering ---
+            renderHome() {
+                const grid = document.getElementById('collections-grid');
+                document.getElementById('collection-count').innerText = this.data.collections.length.toString().padStart(2, '0');
+
+                // Keep the create button, remove others
+                const createBtnHTML = grid.firstElementChild.outerHTML;
+                
+                const collectionsHTML = this.data.collections.map(c => {
+                    const coverUrl = c.coverBlob ? URL.createObjectURL(c.coverBlob) : null;
+                    const imgHtml = coverUrl 
+                        ? `<img src="${coverUrl}" class="cover-img" onload="URL.revokeObjectURL(this.src)">`
+                        : `<div class="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-900"><i class="ph ph-vinyl-record text-4xl"></i></div>`;
+                    
+                    return `
+                        <div onclick="app.openCollection('${c.id}')" class="group cursor-pointer flex flex-col gap-3">
+                            <div class="aspect-square bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800 group-hover:border-white transition-colors relative shadow-lg">
+                                ${imgHtml}
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <i class="ph-fill ph-folder-open text-white text-3xl"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold truncate text-white text-sm sm:text-base">${c.title}</h3>
+                                <p class="text-[10px] sm:text-xs text-zinc-500 truncate mt-1">${c.desc || '—'}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                grid.innerHTML = createBtnHTML + collectionsHTML;
+            },
+
+            renderCollectionDetail() {
+                const col = this.data.collections.find(c => c.id === this.state.activeCollectionId);
+                if (!col) return this.goHome();
+
+                document.getElementById('detail-title').innerText = col.title;
+                document.getElementById('detail-desc').innerText = col.desc || '';
+                
+                const coverImg = document.getElementById('detail-cover');
+                const placeholder = document.getElementById('detail-cover-placeholder');
+                
+                if (col.coverBlob) {
+                    coverImg.src = URL.createObjectURL(col.coverBlob);
+                    coverImg.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                } else {
+                    coverImg.classList.add('hidden');
+                    placeholder.classList.remove('hidden');
+                }
+
+                const colTracks = this.data.tracks.filter(t => t.collectionId === col.id);
+                const list = document.getElementById('tracks-list');
+                const emptyState = document.getElementById('empty-tracks');
+
+                if (colTracks.length === 0) {
+                    list.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    emptyState.classList.add('flex');
+                } else {
+                    emptyState.classList.add('hidden');
+                    emptyState.classList.remove('flex');
+                    list.innerHTML = colTracks.map((t, index) => {
+                        const isPlaying = this.state.playlist[this.state.currentTrackIndex]?.id === t.id && this.state.isPlaying;
+                        const activeClass = (this.state.playlist[this.state.currentTrackIndex]?.id === t.id) ? 'bg-zinc-900 border-zinc-700' : 'border-transparent hover:border-zinc-800 hover:bg-zinc-900/50';
+                        
+                        return `
+                            <div onclick="app.playTrack('${col.id}', ${index})" class="flex items-center px-2 sm:px-4 py-3 rounded-lg cursor-pointer group transition-colors border ${activeClass}">
+                                <div class="w-8 sm:w-12 text-zinc-600 font-mono text-[10px] sm:text-xs text-center group-hover:hidden ${isPlaying ? 'hidden' : 'block'}">${(index + 1).toString().padStart(2, '0')}</div>
+                                <div class="w-8 sm:w-12 text-center text-white ${isPlaying ? 'block' : 'hidden group-hover:block'}">
+                                    <i class="${isPlaying ? 'ph-fill ph-speaker-high text-white animate-pulse' : 'ph-fill ph-play'} text-sm sm:text-base"></i>
+                                </div>
+                                
+                                <div class="flex-1 font-medium text-white truncate pr-2 sm:pr-4 text-sm sm:text-base">${t.title}</div>
+                                
+                                <div class="w-16 sm:w-20 text-right text-[10px] sm:text-sm text-zinc-400 font-mono tracking-tighter">${t.bpm || '--'}</div>
+                                <div class="w-12 sm:w-16 text-right text-[10px] sm:text-sm text-zinc-400 font-mono">${t.key || '--'}</div>
+                                <div class="hidden sm:block w-24 text-right text-xs text-zinc-400 truncate pr-4 font-mono">${t.genre || '--'}</div>
+                                
+                                <div class="w-10 sm:w-16 flex justify-end gap-1 sm:gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <button onclick="app.editTrack(event, '${t.id}')" class="text-zinc-500 hover:text-white p-1 sm:p-2" title="Edit">
+                                        <i class="ph ph-pencil-simple text-sm sm:text-base"></i>
+                                    </button>
+                                    <button onclick="app.deleteTrack(event, '${t.id}')" class="text-zinc-500 hover:text-red-500 p-1 sm:p-2" title="Delete">
+                                        <i class="ph ph-trash text-sm sm:text-base"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            },
+
+            // --- Player Logic ---
+            initPlayer() {
+                this.state.wavesurfer = WaveSurfer.create({
+                    container: '#waveform',
+                    waveColor: '#444444',
+                    progressColor: '#ffffff',
+                    cursorColor: '#ffffff',
+                    barWidth: 2,
+                    barGap: 2,
+                    barRadius: 2,
+                    height: 40,
+                    normalize: true,
+                    interact: true
+                });
+
+                this.state.wavesurfer.on('play', () => {
+                    this.state.isPlaying = true;
+                    this.updatePlayIcons();
+                    if(this.state.currentView === 'collection') this.renderCollectionDetail(); // re-render to show speaker icon
+                });
+                
+                this.state.wavesurfer.on('pause', () => {
+                    this.state.isPlaying = false;
+                    this.updatePlayIcons();
+                    if(this.state.currentView === 'collection') this.renderCollectionDetail();
+                });
+
+                this.state.wavesurfer.on('finish', () => {
+                    this.nextTrack();
+                });
+            },
+
+            updatePlayIcons() {
+                const dIcon = document.getElementById('play-icon');
+                const mIcon = document.getElementById('play-icon-mobile');
+                if(this.state.isPlaying) {
+                    dIcon.classList.replace('ph-play', 'ph-pause');
+                    mIcon.classList.replace('ph-play', 'ph-pause');
+                } else {
+                    dIcon.classList.replace('ph-pause', 'ph-play');
+                    mIcon.classList.replace('ph-pause', 'ph-play');
+                }
+            },
+
+            playCollection() {
+                const colTracks = this.data.tracks.filter(t => t.collectionId === this.state.activeCollectionId);
+                if (colTracks.length > 0) {
+                    this.playTrack(this.state.activeCollectionId, 0);
+                }
+            },
+
+            playSingleTrack(trackId) {
+                const track = this.data.tracks.find(t => t.id === trackId);
+                if(track) {
+                    this.state.playlist = [track];
+                    this.state.currentTrackIndex = 0;
+                    this.loadTrackIntoPlayer(track);
+                }
+            },
+
+            async playTrack(collectionId, index) {
+                this.state.playlist = this.data.tracks.filter(t => t.collectionId === collectionId);
+                this.state.currentTrackIndex = index;
+                const track = this.state.playlist[index];
+                this.loadTrackIntoPlayer(track);
+            },
+            
+            async loadTrackIntoPlayer(track) {
+                if(!track) return;
+                
+                const collection = this.data.collections.find(c => c.id === track.collectionId);
+                
+                // Show player bar globally
+                document.getElementById('player-bar').classList.remove('translate-y-full');
+                // Adjust main content padding so player doesn't cover last items
+                document.getElementById('main-scroll-area').classList.add('pb-32');
+
+                // Update UI metadata
+                document.getElementById('player-title').innerText = track.title;
+                document.getElementById('player-collection').innerText = collection ? collection.title : 'Unknown';
+                document.getElementById('player-bpm').innerText = track.bpm || '--';
+                document.getElementById('player-key').innerText = track.key || '--';
+
+                const pCover = document.getElementById('player-cover');
+                const pFallback = document.getElementById('player-cover-fallback');
+                
+                if (collection && collection.coverBlob) {
+                    pCover.src = URL.createObjectURL(collection.coverBlob);
+                    pCover.classList.remove('hidden');
+                    pFallback.classList.add('hidden');
+                } else {
+                    pCover.classList.add('hidden');
+                    pFallback.classList.remove('hidden');
+                }
+
+                // Load audio
+                document.getElementById('waveform-loading').classList.remove('hidden');
+                const audioUrl = URL.createObjectURL(track.audioBlob);
+                
+                try {
+                    await this.state.wavesurfer.load(audioUrl);
+                    this.state.wavesurfer.play();
+                } catch (e) {
+                    console.error("Error playing audio", e);
+                } finally {
+                    document.getElementById('waveform-loading').classList.add('hidden');
+                    setTimeout(() => URL.revokeObjectURL(audioUrl), 2000); 
+                }
+            },
+
+            togglePlay() {
+                if (!this.state.wavesurfer || this.state.playlist.length === 0) return;
+                this.state.wavesurfer.playPause();
+            },
+
+            nextTrack() {
+                if (this.state.playlist.length <= 1) return;
+                let nextIdx = this.state.currentTrackIndex + 1;
+                if (nextIdx >= this.state.playlist.length) nextIdx = 0; 
+                this.state.currentTrackIndex = nextIdx;
+                this.loadTrackIntoPlayer(this.state.playlist[nextIdx]);
+            },
+
+            prevTrack() {
+                if (this.state.playlist.length === 0) return;
+                
+                if (this.state.wavesurfer.getCurrentTime() > 3) {
+                    this.state.wavesurfer.seekTo(0);
+                    this.state.wavesurfer.play();
+                    return;
+                }
+
+                if (this.state.playlist.length <= 1) return;
+
+                let prevIdx = this.state.currentTrackIndex - 1;
+                if (prevIdx < 0) prevIdx = this.state.playlist.length - 1;
+                this.state.currentTrackIndex = prevIdx;
+                this.loadTrackIntoPlayer(this.state.playlist[prevIdx]);
+            },
+
+            // --- Backup System (Export/Import) ---
+            
+            // Helper to convert Blob to Base64
+            blobToBase64(blob) {
+                return new Promise((resolve, reject) => {
+                    if(!blob) return resolve(null);
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            },
+
+            // Helper to convert Base64 to Blob
+            async base64ToBlob(base64) {
+                if(!base64) return null;
+                const res = await fetch(base64);
+                return await res.blob();
+            },
+
+            async exportBackup() {
+                if(this.data.collections.length === 0 && this.data.tracks.length === 0) {
+                    return alert("Your Crypt is empty. Nothing to export.");
+                }
+
+                alert("Preparing backup. This may take a moment depending on the size of your audio files.");
+                
+                try {
+                    // Deep copy logic with base64 encoding
+                    const exportData = {
+                        collections: await Promise.all(this.data.collections.map(async c => ({
+                            ...c,
+                            coverBlob: await this.blobToBase64(c.coverBlob)
+                        }))),
+                        tracks: await Promise.all(this.data.tracks.map(async t => ({
+                            ...t,
+                            audioBlob: await this.blobToBase64(t.audioBlob)
+                        })))
+                    };
+
+                    const dataStr = JSON.stringify(exportData);
+                    const blob = new Blob([dataStr], {type: "application/json"});
+                    const url  = URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const date = new Date().toISOString().split('T')[0];
+                    a.download = `crypt_backup_${date}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    console.error("Export failed", e);
+                    alert("Export failed. File might be too large.");
+                }
+            },
+
+            async importBackup(input) {
+                const file = input.files[0];
+                if(!file) return;
+
+                if(!confirm("Warning: Importing a backup will overwrite your current Crypt. Proceed?")) {
+                    input.value = '';
+                    return;
+                }
+
+                document.body.style.cursor = 'wait';
+                
+                try {
+                    const text = await file.text();
+                    const parsedData = JSON.parse(text);
+
+                    if(!parsedData.collections || !parsedData.tracks) throw new Error("Invalid backup format");
+
+                    // Restore Blobs
+                    const restoredCollections = await Promise.all(parsedData.collections.map(async c => ({
+                        ...c,
+                        coverBlob: await this.base64ToBlob(c.coverBlob)
+                    })));
+
+                    const restoredTracks = await Promise.all(parsedData.tracks.map(async t => ({
+                        ...t,
+                        audioBlob: await this.base64ToBlob(t.audioBlob)
+                    })));
+
+                    this.data.collections = restoredCollections;
+                    this.data.tracks = restoredTracks;
+                    
+                    await this.persistData();
+                    this.goHome();
+                    alert("Backup imported successfully!");
+
+                } catch (e) {
+                    console.error("Import failed", e);
+                    alert("Import failed. Make sure it's a valid Crypt backup JSON file.");
+                } finally {
+                    document.body.style.cursor = 'default';
+                    input.value = '';
+                }
+            }
+        };
+
+        // Init App
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
