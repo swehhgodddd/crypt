@@ -1376,7 +1376,7 @@
       formatTime(seconds) {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
-        return `mins:{secs.toString().padStart(2, '0')}`;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
       },
 
       async exportBackup() {
@@ -1386,7 +1386,7 @@
           const parts = [JSON.stringify({ crypt: 2, collections: this.data.collections }) + '\n'];
           const tracks = this.data.tracks;
           for (let i = 0; i < tracks.length; i++) {
-            btn.innerText = `i+1/{tracks.length}`;
+            btn.innerText = `${i + 1}/${tracks.length}`;
             const meta = { ...tracks[i] };
             delete meta.audioData;
             const blob = await localforage.getItem(this.audioKey(meta.id));
@@ -1432,49 +1432,94 @@
         await onLine(buf);
       },
 
-      async importTrack(meta, audio, newData) {
+      // Import non distruttivo: unisce il backup ai dati attuali.
+      // Collezioni/brani gia' presenti (stesso id) restano com'erano; si aggiunge solo cio' che manca.
+      async importTrack(meta, audio, ctx) {
         const t = { ...meta };
         delete t.audioData;
-        if (audio) await localforage.setItem(this.audioKey(t.id), await this.dataUrlToBlob(audio));
-        newData.tracks.push(t);
+        const key = this.audioKey(t.id);
+        if (ctx.localIds.has(t.id)) {
+          ctx.skipped++;
+          // Unica eccezione: se il brano c'e' ma il suo file audio manca, lo recupero dal backup
+          if (audio && !ctx.audioKeys.has(key)) {
+            await localforage.setItem(key, await this.dataUrlToBlob(audio));
+            ctx.audioKeys.add(key);
+            ctx.written.push(key);
+            ctx.restored++;
+          }
+          return;
+        }
+        if (audio) {
+          await localforage.setItem(key, await this.dataUrlToBlob(audio));
+          ctx.audioKeys.add(key);
+          ctx.written.push(key);
+        }
+        ctx.localIds.add(t.id);
+        ctx.newTracks.push(t);
       },
 
       async importBackup(e) {
         const file = e.target.files[0];
         e.target.value = '';
         if (!file) return;
-        if (!confirm('Importing replaces everything currently in Crypt. Continue?')) return;
+        if (!confirm('The backup will be merged with what is already in Crypt. Nothing existing is deleted or overwritten. Continue?')) return;
 
         const btn = document.getElementById('btn-import-trigger');
         const label = btn.innerText;
+        const ctx = {
+          localIds: new Set(this.data.tracks.map(t => t.id)),
+          colIds: new Set(this.data.collections.map(c => c.id)),
+          audioKeys: new Set(await localforage.keys()),
+          newCols: [], newTracks: [], written: [],
+          skipped: 0, restored: 0, recognized: false
+        };
+        const addCollections = (cols) => {
+          for (const c of cols) {
+            if (c && c.id && !ctx.colIds.has(c.id)) { ctx.colIds.add(c.id); ctx.newCols.push(c); }
+          }
+        };
+
         try {
-          const newData = { collections: [], tracks: [] };
           await this.readLines(file, async (line) => {
             if (!line.trim()) return;
             const o = JSON.parse(line);
-            if (o.collections && o.tracks) {
-              newData.collections = o.collections;
-              for (const t of o.tracks) await this.importTrack(t, t.audioData, newData);
-            } else if (o.collections) {
-              newData.collections = o.collections;
-            } else if (o.track) {
-              await this.importTrack(o.track, o.audio, newData);
+            if (o.collections && o.tracks) {            // formato vecchio: tutto in un oggetto
+              ctx.recognized = true;
+              addCollections(o.collections);
+              for (const t of o.tracks) await this.importTrack(t, t.audioData, ctx);
+            } else if (o.collections) {                  // formato v2: riga delle collezioni
+              ctx.recognized = true;
+              addCollections(o.collections);
+            } else if (o.track) {                        // formato v2: un brano per riga
+              ctx.recognized = true;
+              await this.importTrack(o.track, o.audio, ctx);
             }
-            btn.innerText = `${newData.tracks.length}...`;
+            btn.innerText = `${ctx.newTracks.length}...`;
           });
-          if (!newData.collections.length && !newData.tracks.length) throw new Error('Invalid backup file');
+          if (!ctx.recognized) throw new Error('Invalid backup file');
 
-          const keep = new Set(newData.tracks.map(t => this.audioKey(t.id)));
-          for (const k of await localforage.keys()) {
-            if ((k.startsWith('audio_') && !keep.has(k)) || k.startsWith('peaks_')) await localforage.removeItem(k);
+          if (ctx.newCols.length || ctx.newTracks.length) {
+            this.data = {
+              ...this.data,
+              collections: [...this.data.collections, ...ctx.newCols],
+              tracks: [...this.data.tracks, ...ctx.newTracks]
+            };
+            await this.persistData();
           }
-          this.data = newData;
-          await this.persistData();
-          alert('Backup imported successfully!');
+
+          alert(
+            `Backup merged.\n` +
+            `New collections: ${ctx.newCols.length}\n` +
+            `New tracks: ${ctx.newTracks.length}\n` +
+            `Already present (kept as is): ${ctx.skipped}` +
+            (ctx.restored ? `\nMissing audio restored: ${ctx.restored}` : '')
+          );
           this.goHome();
         } catch (err) {
           console.error(err);
-          alert('Failed to import backup: ' + err.message);
+          // Import fallito a meta': tolgo solo i file audio scritti da questa operazione
+          for (const k of ctx.written) { try { await localforage.removeItem(k); } catch (_) {} }
+          alert('Failed to import backup: ' + err.message + '\nNothing was changed.');
         } finally {
           btn.innerText = label;
         }
