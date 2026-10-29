@@ -118,6 +118,7 @@
     .full-controls .btn-play svg { width: 26px; height: 26px; }
     .full-controls .btn-ctrl { width: 48px; height: 48px; opacity: .85; }
 
+    .storage-info { margin-top: 56px; font-size: 12px; color: var(--mute); }
     .btn-quiet { border-color: transparent; color: var(--mute); padding: 6px 8px; }
     .btn-quiet:hover { border-color: transparent; color: #fff; }
     textarea.input-field { resize: vertical; min-height: 76px; line-height: 1.4; }
@@ -191,6 +192,7 @@
       </div>
       <div id="tracks-list"></div>
     </section>
+  <div id="storage-info" class="storage-info"></div>
   </main>
 
   <!-- PLAYER -->
@@ -342,6 +344,11 @@
   </div>
 
   <script>
+    function uid(prefix) {
+      const r = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+      return prefix + '_' + r;
+    }
+
     function esc(v) {
       return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
@@ -364,6 +371,7 @@
         this.initWaveSurfer();
         this.bindEvents();
         this.render();
+        this.updateStorageInfo();
       },
 
       audioKey(id) { return 'audio_' + id; },
@@ -428,14 +436,34 @@
         this.wavesurfer.on('ready', (duration) => {
           document.getElementById('player-duration').innerText = this.formatTime(duration);
           document.getElementById('full-duration').innerText = this.formatTime(duration);
+          if (this.currentTrackId && !this.peaksCached && this.wavesurfer.exportPeaks) {
+            try {
+              const peaks = this.wavesurfer.exportPeaks({ maxLength: Math.min(20000, Math.ceil(duration * 20)), precision: 100 });
+              localforage.setItem('peaks_' + this.currentTrackId, { peaks, duration });
+              this.peaksCached = true;
+            } catch (_) {}
+          }
           this.wavesurfer.play();
         });
-        this.wavesurfer.on('play', () => this.setPlayIcon());
-        this.wavesurfer.on('pause', () => this.setPlayIcon());
+        this.wavesurfer.on('play', () => { this.setPlayIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing'; });
+        this.wavesurfer.on('pause', () => { this.setPlayIcon(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused'; });
+
+        if ('mediaSession' in navigator) {
+          const set = (action, fn) => { try { navigator.mediaSession.setActionHandler(action, fn); } catch (_) {} };
+          set('play', () => this.wavesurfer.play());
+          set('pause', () => this.wavesurfer.pause());
+          set('previoustrack', () => this.stepTrack(-1));
+          set('nexttrack', () => this.stepTrack(1));
+          set('seekto', (d) => { if (d.seekTime != null) this.wavesurfer.setTime(d.seekTime); });
+        }
         this.wavesurfer.on('timeupdate', (t) => {
           const f = this.formatTime(t);
           document.getElementById('player-time').innerText = f;
           document.getElementById('full-time').innerText = f;
+          if ('mediaSession' in navigator && navigator.mediaSession.setPositionState) {
+            const d = this.wavesurfer.getDuration();
+            if (isFinite(d) && d > 0) { try { navigator.mediaSession.setPositionState({ duration: d, position: Math.min(t, d), playbackRate: 1 }); } catch (_) {} }
+          }
         });
         this.wavesurfer.on('finish', () => {
           if (this.queueIndex < this.queue.length - 1) this.stepTrack(1);
@@ -615,7 +643,18 @@
         if (this.cropper) { this.cropper.destroy(); this.cropper = null; }
       },
 
+      async updateStorageInfo() {
+        const el = document.getElementById('storage-info');
+        if (!el || !(navigator.storage && navigator.storage.estimate)) return;
+        try {
+          const { usage, quota } = await navigator.storage.estimate();
+          const fmt = n => n >= 1073741824 ? (n / 1073741824).toFixed(1) + ' GB' : Math.round(n / 1048576) + ' MB';
+          el.innerText = `Storage: ${fmt(usage)} used of ${fmt(quota)}` + (usage / quota > 0.85 ? ' (almost full, make a backup)' : '');
+        } catch (_) {}
+      },
+
       async persistData() {
+        setTimeout(() => this.updateStorageInfo(), 600);
         await localforage.setItem('crypt_app_data', this.data);
       },
 
@@ -666,7 +705,7 @@
           if (this.tempCroppedImageBase64) col.cover = this.tempCroppedImageBase64;
         } else {
           this.data.collections.push({
-            id: 'col_' + Date.now(),
+            id: uid('col'),
             title, desc,
             cover: this.tempCroppedImageBase64 || null
           });
@@ -680,7 +719,7 @@
       async deleteCollection(id) {
         if (!confirm("Are you sure? All tracks inside will be deleted.")) return;
         this.data.collections = this.data.collections.filter(c => c.id !== id);
-        for (const t of this.data.tracks.filter(t => t.collectionId === id)) await localforage.removeItem(this.audioKey(t.id));
+        for (const t of this.data.tracks.filter(t => t.collectionId === id)) { await localforage.removeItem(this.audioKey(t.id)); await localforage.removeItem('peaks_' + t.id); }
         this.data.tracks = this.data.tracks.filter(t => t.collectionId !== id);
         await this.persistData();
         this.goHome();
@@ -732,10 +771,11 @@
         const editing = this.editingTrackId ? this.data.tracks.find(t => t.id === this.editingTrackId) : null;
         if (!editing && !file) return alert('Select an audio file');
 
-        const id = editing ? editing.id : 'track_' + Date.now();
+        const id = editing ? editing.id : uid('track');
         if (file) {
           try {
             await localforage.setItem(this.audioKey(id), file);
+            await localforage.removeItem('peaks_' + id);
           } catch (err) {
             console.error(err);
             return alert('Not enough storage space to save this track.');
@@ -765,7 +805,21 @@
         this.renderCollectionDetail(this.currentCollectionId);
       },
 
+      updateMediaSession(t) {
+        if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+        const col = this.data.collections.find(c => c.id === t.collectionId);
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: t.title,
+            artist: 'Crypt',
+            album: col ? col.title : '',
+            artwork: (col && col.cover) ? [{ src: col.cover, sizes: '500x500', type: 'image/jpeg' }] : []
+          });
+        } catch (_) {}
+      },
+
       updatePlayerMeta(t) {
+        this.updateMediaSession(t);
         const sub = [t.bpm && t.bpm !== '---' && `${t.bpm} BPM`, t.key !== '---' && t.key, t.genre !== '---' && t.genre].filter(Boolean).join(', ') || '--';
         document.getElementById('player-title').innerText = t.title;
         document.getElementById('player-sub').innerText = sub;
@@ -818,6 +872,7 @@
       async deleteTrack(id) {
         if (!confirm("Delete track?")) return;
         await localforage.removeItem(this.audioKey(id));
+        await localforage.removeItem('peaks_' + id);
         this.data.tracks = this.data.tracks.filter(t => t.id !== id);
         await this.persistData();
         this.renderCollectionDetail(this.currentCollectionId);
@@ -844,13 +899,19 @@
         const coverCss = (parentCol && parentCol.cover) ? `url(${parentCol.cover})` : 'none';
         document.getElementById('player-cover').style.backgroundImage = coverCss;
         document.getElementById('full-bg').style.backgroundImage = coverCss;
+        this.updateMediaSession(track);
 
         const blob = await localforage.getItem(this.audioKey(track.id));
         const src = blob ? URL.createObjectURL(blob) : track.audioData;
         if (!src) return alert('Audio file not found for this track.');
         if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
         this.currentObjectUrl = blob ? src : null;
-        this.wavesurfer.load(src);
+        this.currentTrackId = track.id;
+        let cached = null;
+        try { cached = await localforage.getItem('peaks_' + track.id); } catch (_) {}
+        this.peaksCached = !!cached;
+        if (cached && cached.peaks && cached.duration) this.wavesurfer.load(src, cached.peaks, cached.duration);
+        else this.wavesurfer.load(src);
       },
 
       render() {
@@ -1055,7 +1116,7 @@
 
           const keep = new Set(newData.tracks.map(t => this.audioKey(t.id)));
           for (const k of await localforage.keys()) {
-            if (k.startsWith('audio_') && !keep.has(k)) await localforage.removeItem(k);
+            if ((k.startsWith('audio_') && !keep.has(k)) || k.startsWith('peaks_')) await localforage.removeItem(k);
           }
           this.data = newData;
           await this.persistData();
