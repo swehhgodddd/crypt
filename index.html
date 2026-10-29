@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Crypt">
   <meta name="theme-color" content="#000000">
-  <link rel="apple-touch-icon" href="https://placehold.co/192x192/000000/ffffff?text=C">
+  <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- External Libraries -->
   <script src="https://unpkg.com/wavesurfer.js@7"></script>
@@ -1346,7 +1346,7 @@
           item.className = 'track-row' + (isCurrent ? ' is-active' : '');
           item.innerHTML = `
             <div class="track-meta">
-              <button class="btn-play btn-play-track" data-id="${esc(t.id)}">${isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}</button>
+              <button class="btn-play btn-play-track" data-id="esc(t.id)">{isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}</button>
               <div>
                 <div style="font-size:14px; font-weight:600;">${esc(t.title)}</div>
                 <div style="font-size:12px; color:#8c8c8c;">${esc(t.genre)}</div>
@@ -1376,7 +1376,7 @@
       formatTime(seconds) {
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+        return `mins:{secs.toString().padStart(2, '0')}`;
       },
 
       async exportBackup() {
@@ -1386,7 +1386,7 @@
           const parts = [JSON.stringify({ crypt: 2, collections: this.data.collections }) + '\n'];
           const tracks = this.data.tracks;
           for (let i = 0; i < tracks.length; i++) {
-            btn.innerText = `${i + 1}/${tracks.length}`;
+            btn.innerText = `i+1/{tracks.length}`;
             const meta = { ...tracks[i] };
             delete meta.audioData;
             const blob = await localforage.getItem(this.audioKey(meta.id));
@@ -1496,3 +1496,4 @@
   </script>
 </body>
 </html>
+
