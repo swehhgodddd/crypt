@@ -308,7 +308,7 @@
       <div id="track-modal-title" class="section-title">Add track</div>
       <div>
         <label id="track-audio-label" class="label">Audio file (MP3, WAV)</label>
-        <input type="file" id="track-audio-file" accept="audio/*" class="input-file-native">
+        <input type="file" id="track-audio-file" accept="audio/*" multiple class="input-file-native">
       </div>
       <div>
         <label class="label">Title</label>
@@ -396,7 +396,6 @@
         });
       },
 
-      // Vecchio formato: audio in base64 dentro un unico oggetto. Lo sposto in blob separati.
       async migrateLegacyAudio() {
         const legacy = this.data.tracks.filter(t => typeof t.audioData === 'string');
         if (!legacy.length) return;
@@ -523,7 +522,6 @@
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
-        // File change listener (mobile-safe: ridimensiona l'immagine prima del crop)
         document.getElementById('col-cover-file').addEventListener('change', async (e) => {
           const input = e.target;
           const file = input.files && input.files[0];
@@ -568,13 +566,11 @@
         document.getElementById('full-next-btn').onclick = () => this.stepTrack(1);
         document.getElementById('full-close').onclick = () => this.closeFull();
 
-        // Tocca il player (fuori da pulsanti e waveform) per aprire la schermata grande
         document.getElementById('global-player').addEventListener('click', (e) => {
           if (e.target.closest('button, .player-wave')) return;
           this.openFull();
         });
 
-        // Swipe verso il basso per chiudere (non sulla waveform, che scorre in orizzontale)
         const fp = document.getElementById('full-player');
         let y0 = null;
         fp.addEventListener('touchstart', (e) => { y0 = e.target.closest('#full-wave-holder') ? null : e.touches[0].clientY; }, { passive: true });
@@ -597,7 +593,6 @@
         document.getElementById('import-file-input').onchange = (e) => this.importBackup(e);
       },
 
-      // Ridimensiona (max 1600px) e raddrizza l'EXIF: le foto da telefono sono enormi
       async prepareImage(file) {
         const MAX = 1600;
         let source, w, h;
@@ -627,7 +622,6 @@
         const cropImg = document.getElementById('crop-image-target');
         if (this.cropper) { this.cropper.destroy(); this.cropper = null; }
         document.getElementById('modal-crop').classList.remove('hidden');
-        // Cropper va creato SOLO dopo che l'immagine e' caricata
         cropImg.onload = () => {
           cropImg.onload = null;
           this.cropper = new Cropper(cropImg, {
@@ -760,7 +754,7 @@
       },
 
       async saveTrack() {
-        const file = document.getElementById('track-audio-file').files[0];
+        const files = document.getElementById('track-audio-file').files;
         const title = document.getElementById('track-title-input').value.trim();
         const bpm = document.getElementById('track-bpm-input').value.trim();
         const key = document.getElementById('track-key-input').value.trim();
@@ -769,20 +763,21 @@
         const credits = this.parseCredits(document.getElementById('track-credits-input').value);
 
         const editing = this.editingTrackId ? this.data.tracks.find(t => t.id === this.editingTrackId) : null;
-        if (!editing && !file) return alert('Select an audio file');
-
-        const id = editing ? editing.id : uid('track');
-        if (file) {
-          try {
-            await localforage.setItem(this.audioKey(id), file);
-            await localforage.removeItem('peaks_' + id);
-          } catch (err) {
-            console.error(err);
-            return alert('Not enough storage space to save this track.');
-          }
-        }
+        if (!editing && files.length === 0) return alert('Select at least one audio file');
 
         if (editing) {
+          const file = files[0];
+          const id = editing.id;
+          if (file) {
+            try {
+              await localforage.setItem(this.audioKey(id), file);
+              await localforage.removeItem('peaks_' + id);
+            } catch (err) {
+              console.error(err);
+              return alert('Not enough storage space to save this track.');
+            }
+          }
+
           Object.assign(editing, {
             title: title || editing.title,
             bpm: bpm || '---', key: key || '---', genre: genre || '---',
@@ -791,13 +786,25 @@
           const cur = this.queue[this.queueIndex];
           if (cur && cur.id === editing.id) this.updatePlayerMeta(editing);
         } else {
-          this.data.tracks.push({
-            id,
-            collectionId: this.currentCollectionId,
-            title: title || file.name.replace(/\.[^/.]+$/, ""),
-            bpm: bpm || '---', key: key || '---', genre: genre || '---',
-            description, credits
-          });
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const id = uid('track');
+            try {
+              await localforage.setItem(this.audioKey(id), file);
+            } catch (err) {
+              console.error(err);
+              alert('Storage full! Could not save all tracks.');
+              break;
+            }
+            const finalTitle = (files.length === 1 && title) ? title : file.name.replace(/\.[^/.]+$/, "");
+            this.data.tracks.push({
+              id,
+              collectionId: this.currentCollectionId,
+              title: finalTitle,
+              bpm: bpm || '---', key: key || '---', genre: genre || '---',
+              description, credits
+            });
+          }
         }
 
         await this.persistData();
@@ -1028,7 +1035,6 @@
         return `${mins}:${secs.toString().padStart(2, '0')}`;
       },
 
-      // Backup: una riga per brano, cosi' non serve mai tenere tutto in memoria insieme
       async exportBackup() {
         const btn = document.getElementById('btn-export');
         const label = btn.innerText;
@@ -1102,7 +1108,7 @@
           await this.readLines(file, async (line) => {
             if (!line.trim()) return;
             const o = JSON.parse(line);
-            if (o.collections && o.tracks) {            // vecchio formato (un solo JSON)
+            if (o.collections && o.tracks) {
               newData.collections = o.collections;
               for (const t of o.tracks) await this.importTrack(t, t.audioData, newData);
             } else if (o.collections) {
