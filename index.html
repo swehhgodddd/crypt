@@ -26,7 +26,7 @@
     :root { --fg:#fff; --mute:#8c8c8c; --line:rgba(255,255,255,.14); --line-hi:rgba(255,255,255,.55); --soft:rgba(255,255,255,.06); --accent:#ffffff; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif; }
     html { -webkit-font-smoothing: antialiased; }
-    body { background: #000; color: var(--fg); font-size: 14px; padding-bottom: 170px; -webkit-tap-highlight-color: transparent; }
+    body { background: #000; color: var(--fg); font-size: 14px; padding-bottom: 240px; -webkit-tap-highlight-color: transparent; }
     :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
     header { position: sticky; top: 0; z-index: 30; background: rgba(0,0,0,.82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
@@ -79,7 +79,7 @@
     .label { font-size: 12px; color: var(--mute); margin-bottom: 6px; display: block; }
 
     /* Player */
-    #global-player { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.88); border-top: 1px solid var(--line); padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 40; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    #global-player { position: fixed; bottom: calc(52px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; background: rgba(0,0,0,.88); border-top: 1px solid var(--line); padding: 14px 20px; z-index: 40; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
     #global-player.hidden { display: none !important; }
     .player-container { max-width: 1200px; margin: 0 auto; display: flex; gap: 24px; align-items: center; }
     .player-top { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
@@ -100,6 +100,13 @@
     #waveform { flex: 1; min-width: 0; cursor: pointer; }
 
     .right-controls { display: flex; gap: 4px; align-items: center; }
+
+    /* Bottom Nav */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.92); border-top: 1px solid var(--line); display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .bottom-nav-btn { flex: 1; background: none; border: none; color: var(--mute); padding: 16px 0; font-size: 13px; font-weight: 600; cursor: pointer; transition: color .15s; }
+    .bottom-nav-btn.active { color: #fff; }
+    .btn-reorder { width: 28px; height: 28px; background: none; border: 1px solid var(--line); color: var(--mute); border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: color .15s, border-color .15s; }
+    .btn-reorder:hover { color: #fff; border-color: #fff; }
 
     /* Schermata player a tutto schermo */
     #full-player { position: fixed; inset: 0; z-index: 60; background: #000; overflow: hidden; transform: translateY(100%); visibility: hidden; transition: transform .45s cubic-bezier(.2,.8,.2,1), visibility 0s .45s; }
@@ -153,7 +160,7 @@
       .detail-head { gap: 16px; flex-direction: column; align-items: flex-start; }
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 14px; }
       .card-title { font-size: 13px; }
-      #global-player { padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)); }
+      #global-player { padding: 12px 14px; }
       .player-container { flex-direction: column; align-items: stretch; gap: 10px; }
       .player-top { gap: 10px; }
       .player-info { flex: 1; width: auto; }
@@ -177,7 +184,7 @@
       <button id="btn-export" class="btn" title="Export Backup">Backup</button>
       <button id="btn-import-trigger" class="btn" title="Import Backup">Import</button>
       <input type="file" id="import-file-input" accept=".json" style="display:none">
-      <button id="btn-open-create-collection" class="btn btn-white">New collection</button>
+      <button id="btn-open-create-collection" class="btn btn-white" style="display:none;">New collection</button>
     </div>
   </header>
 
@@ -188,8 +195,13 @@
 
     <!-- COLLECTIONS VIEW -->
     <section id="view-collections">
-      <div class="section-title display">Your crypt</div>
-      <div class="section-sub">Open a collection or create a new one.</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 44px;">
+        <div>
+          <div class="section-title display">Your crypt</div>
+          <div class="section-sub" style="margin-bottom:0;">Open a collection or create a new one.</div>
+        </div>
+        <button onclick="app.openCollectionModal()" class="btn btn-white">New collection</button>
+      </div>
       <div id="collections-grid" class="grid"></div>
     </section>
 
@@ -203,8 +215,42 @@
       </div>
       <div id="tracks-list"></div>
     </section>
+
+    <!-- PLAYLISTS VIEW -->
+    <section id="view-playlists" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 44px;">
+        <div>
+          <div class="section-title display">Playlists</div>
+          <div class="section-sub" style="margin-bottom:0;">Mix and match your tracks.</div>
+        </div>
+        <button id="btn-open-create-playlist" class="btn btn-white">New playlist</button>
+      </div>
+      <div id="playlists-grid" class="grid"></div>
+    </section>
+
+    <!-- PLAYLIST DETAIL VIEW -->
+    <section id="view-playlist-detail" style="display:none;">
+      <div id="playlist-header-detail" class="detail-head"></div>
+      <div class="section-title" style="margin-bottom:12px;">Tracks</div>
+      <div id="playlist-tracks-list"></div>
+    </section>
+
+    <!-- LIBRARY VIEW -->
+    <section id="view-library" style="display:none;">
+      <div class="section-title display">Library</div>
+      <div class="section-sub">All your unique tracks in one place.</div>
+      <div id="library-tracks-list"></div>
+    </section>
+
     <div id="storage-info" class="storage-info"></div>
   </main>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav class="bottom-nav">
+    <button id="nav-btn-collections" class="bottom-nav-btn active" onclick="app.switchTab('collections')">Collections</button>
+    <button id="nav-btn-playlists" class="bottom-nav-btn" onclick="app.switchTab('playlists')">Playlists</button>
+    <button id="nav-btn-library" class="bottom-nav-btn" onclick="app.switchTab('library')">Library</button>
+  </nav>
 
   <!-- PLAYER GLOBALE -->
   <div id="global-player" class="hidden">
@@ -305,8 +351,39 @@
       </div>
       <div style="display:flex; flex-direction:column;">
         <div class="menu-row" id="tm-info">Info & Description</div>
+        <div class="menu-row" id="tm-add-playlist">Add to Playlist</div>
         <div class="menu-row" id="tm-edit">Edit Track</div>
         <div class="menu-row" id="tm-delete" style="color: #ff4d4d;">Delete Track</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ADD TO PLAYLIST -->
+  <div id="modal-add-to-playlist" class="modal-overlay hidden">
+    <div class="modal-box info-box bottom-sheet">
+      <div class="info-head">
+        <div class="section-title" style="font-size:20px;">Add to Playlist</div>
+        <button class="btn-ctrl" onclick="document.getElementById('modal-add-to-playlist').classList.add('hidden')">✕</button>
+      </div>
+      <div id="atp-list" style="display:flex; flex-direction:column; gap:8px; margin-top:12px; max-height: 50vh; overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- MODAL PLAYLIST (Creazione) -->
+  <div id="modal-playlist" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div id="modal-playlist-title" class="section-title">New playlist</div>
+      <div>
+        <label class="label">Title</label>
+        <input type="text" id="pl-title-input" class="input-field" placeholder="e.g. Summer Mix">
+      </div>
+      <div>
+        <label class="label">Description</label>
+        <textarea id="pl-desc-input" class="input-field" rows="2" placeholder="Optional notes..."></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+        <button id="btn-cancel-pl" class="btn" onclick="document.getElementById('modal-playlist').classList.add('hidden')">Cancel</button>
+        <button id="btn-save-pl" class="btn btn-white" onclick="app.savePlaylist()">Save</button>
       </div>
     </div>
   </div>
@@ -434,8 +511,10 @@
     }
 
     const app = {
-      data: { collections: [], tracks: [] },
+      data: { collections: [], tracks: [], playlists: [] },
       currentCollectionId: null,
+      currentPlaylistId: null,
+      currentTab: 'collections',
       wavesurfer: null,
       cropper: null,
       tempCroppedImageBase64: null,
@@ -443,20 +522,22 @@
 
       // State controlli
       isShuffle: false,
-      repeatMode: 'off', // 'off' | 'all' | 'one'
+      repeatMode: 'off',
       speed: 1.0,
       speeds: [0.8, 0.9, 1.0, 1.1, 1.2],
       loopA: null,
       loopB: null,
       isLoopActive: false,
       
-      // Traccia selezionata nei 3 puntini
       menuTrack: null, 
 
       async init() {
         localforage.config({ name: 'CRYPT_STORAGE', storeName: 'crypt_data' });
         const savedData = await localforage.getItem('crypt_app_data');
-        if (savedData) this.data = savedData;
+        if (savedData) {
+            this.data = savedData;
+            if (!this.data.playlists) this.data.playlists = [];
+        }
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
         try { await this.migrateLegacyAudio(); } catch (err) { console.warn('Audio migration:', err); }
 
@@ -549,7 +630,6 @@
         }
 
         this.wavesurfer.on('timeupdate', (t) => {
-          // Controllo Loop A-B
           if (this.isLoopActive && this.loopA !== null && this.loopB !== null) {
             if (t >= this.loopB) {
               this.wavesurfer.setTime(this.loopA);
@@ -610,9 +690,14 @@
         document.body.style.overflow = '';
       },
 
+      playQueue(trackList, startTrack) {
+        this.queue = trackList;
+        this.queueIndex = this.queue.findIndex(t => t.id === startTrack.id);
+        this.loadTrack(startTrack);
+      },
+
       stepTrack(dir) {
         if (!this.queue.length) return;
-
         if (dir > 0 && this.isShuffle) {
           let r = Math.floor(Math.random() * this.queue.length);
           if (this.queue.length > 1 && r === this.queueIndex) r = (r + 1) % this.queue.length;
@@ -636,7 +721,6 @@
 
       toggleShuffle() {
         this.isShuffle = !this.isShuffle;
-        // Aggiorna il bottone sotto la collezione se è renderizzato
         const colShuffBtn = document.getElementById('btn-shuffle-col');
         if(colShuffBtn) {
             colShuffBtn.classList.toggle('active', this.isShuffle);
@@ -688,26 +772,45 @@
       updateLoopUI() {
         const aVal = document.getElementById('pm-loop-a-val');
         const bVal = document.getElementById('pm-loop-b-val');
-        
         if(this.loopA !== null) { aVal.style.display = 'inline-block'; aVal.innerText = this.formatTime(this.loopA); }
         else { aVal.style.display = 'none'; }
-        
         if(this.loopB !== null) { bVal.style.display = 'inline-block'; bVal.innerText = this.formatTime(this.loopB); }
         else { bVal.style.display = 'none'; }
       },
 
-      // Apertura Menù Opzioni Player
       openPlayerMenu() {
         this.updateLoopUI();
         document.getElementById('pm-speed-val').innerText = `${this.speed.toFixed(1)}x`;
         document.getElementById('modal-player-menu').classList.remove('hidden');
       },
 
-      // Apertura Menù Opzioni Traccia
       openTrackMenu(track) {
         this.menuTrack = track;
         document.getElementById('tm-title').innerText = track.title;
         document.getElementById('modal-track-menu').classList.remove('hidden');
+      },
+
+      openAddToPlaylistModal(track) {
+        document.getElementById('modal-track-menu').classList.add('hidden');
+        const list = document.getElementById('atp-list');
+        list.innerHTML = '';
+        if (this.data.playlists.length === 0) {
+          list.innerHTML = `<div style="color:var(--mute); font-size:13px; text-align:center; padding:20px;">No playlists created yet.</div>`;
+        } else {
+          this.data.playlists.forEach(pl => {
+            const row = document.createElement('div');
+            row.className = 'menu-row';
+            row.innerText = pl.title;
+            row.onclick = async () => {
+              pl.trackIds.push(track.id);
+              await this.persistData();
+              document.getElementById('modal-add-to-playlist').classList.add('hidden');
+              alert(`Added to ${pl.title}`);
+            };
+            list.appendChild(row);
+          });
+        }
+        document.getElementById('modal-add-to-playlist').classList.remove('hidden');
       },
 
       isHarmonicMatch(cur, t) {
@@ -758,9 +861,15 @@
         document.getElementById('btn-logo').onclick = () => this.goHome();
         document.getElementById('nav-home').onclick = () => this.goHome();
 
-        document.getElementById('btn-open-create-collection').onclick = () => this.openCollectionModal();
+        // Modali
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
+
+        document.getElementById('btn-open-create-playlist').onclick = () => {
+          document.getElementById('pl-title-input').value = '';
+          document.getElementById('pl-desc-input').value = '';
+          document.getElementById('modal-playlist').classList.remove('hidden');
+        };
 
         document.getElementById('col-cover-file').addEventListener('change', async (e) => {
           const input = e.target;
@@ -813,7 +922,7 @@
         document.getElementById('full-queue-btn').onclick = () => this.showQueue();
         document.getElementById('queue-close').onclick = () => document.getElementById('modal-queue').classList.add('hidden');
 
-        // Menu 3 Puntini: Player
+        // Menu Player
         document.getElementById('btn-player-more').onclick = () => this.openPlayerMenu();
         document.getElementById('full-more-btn').onclick = () => this.openPlayerMenu();
         document.getElementById('pm-close').onclick = () => document.getElementById('modal-player-menu').classList.add('hidden');
@@ -828,11 +937,14 @@
         document.getElementById('pm-loop-b').onclick = () => this.setLoopB();
         document.getElementById('pm-loop-clr').onclick = () => this.clearLoop();
 
-        // Menu 3 Puntini: Traccia
+        // Menu Traccia
         document.getElementById('tm-close').onclick = () => document.getElementById('modal-track-menu').classList.add('hidden');
         document.getElementById('tm-info').onclick = () => {
           document.getElementById('modal-track-menu').classList.add('hidden');
           if(this.menuTrack) this.showInfo(this.menuTrack);
+        };
+        document.getElementById('tm-add-playlist').onclick = () => {
+          if (this.menuTrack) this.openAddToPlaylistModal(this.menuTrack);
         };
         document.getElementById('tm-edit').onclick = () => {
           document.getElementById('modal-track-menu').classList.add('hidden');
@@ -842,23 +954,20 @@
           document.getElementById('modal-track-menu').classList.add('hidden');
           if(this.menuTrack) this.deleteTrack(this.menuTrack.id);
         };
-
-        // Chiusura Modals Info
         document.getElementById('info-close').onclick = () => document.getElementById('modal-info').classList.add('hidden');
 
-        // Chiusura Modals su overlay click
-        const modals = ['modal-info', 'modal-queue', 'modal-player-menu', 'modal-track-menu'];
+        // Click Fuori dai Modali
+        const modals = ['modal-info', 'modal-queue', 'modal-player-menu', 'modal-track-menu', 'modal-add-to-playlist'];
         modals.forEach(m => {
-          document.getElementById(m).addEventListener('click', (e) => { if (e.target.id === m) e.target.classList.add('hidden'); });
+          const el = document.getElementById(m);
+          if(el) el.addEventListener('click', (e) => { if (e.target.id === m) e.target.classList.add('hidden'); });
         });
 
-        // Apertura Full Player
         document.getElementById('global-player').addEventListener('click', (e) => {
           if (e.target.closest('button, .player-wave, .right-controls')) return;
           this.openFull();
         });
 
-        // Swipe down to close full player
         const fp = document.getElementById('full-player');
         let y0 = null;
         fp.addEventListener('touchstart', (e) => { y0 = e.target.closest('#full-wave-holder') ? null : e.touches[0].clientY; }, { passive: true });
@@ -867,13 +976,12 @@
           y0 = null;
         }, { passive: true });
 
-        // Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
           const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
           if (tag === 'input' || tag === 'textarea') return;
 
           if (e.key === 'Escape') {
-             modals.forEach(m => document.getElementById(m).classList.add('hidden'));
+             modals.forEach(m => { const el = document.getElementById(m); if(el) el.classList.add('hidden'); });
              this.closeFull();
           } else if (e.key === ' ') {
             e.preventDefault();
@@ -941,10 +1049,7 @@
         document.getElementById('modal-crop').classList.remove('hidden');
         cropImg.onload = () => {
           cropImg.onload = null;
-          this.cropper = new Cropper(cropImg, {
-            aspectRatio: 1, viewMode: 1, background: false,
-            checkOrientation: false, autoCropArea: 1
-          });
+          this.cropper = new Cropper(cropImg, { aspectRatio: 1, viewMode: 1, background: false, checkOrientation: false, autoCropArea: 1 });
         };
         cropImg.src = imageSrc;
       },
@@ -970,10 +1075,27 @@
       },
 
       goHome() {
+        this.switchTab('collections');
+      },
+
+      switchTab(tab) {
+        this.currentTab = tab;
         this.currentCollectionId = null;
-        document.getElementById('view-collection-detail').style.display = 'none';
-        document.getElementById('view-collections').style.display = 'block';
+        this.currentPlaylistId = null;
         document.getElementById('breadcrumb').style.display = 'none';
+
+        ['view-collections', 'view-collection-detail', 'view-playlists', 'view-playlist-detail', 'view-library'].forEach(id => {
+          document.getElementById(id).style.display = 'none';
+        });
+
+        if (tab === 'collections') document.getElementById('view-collections').style.display = 'block';
+        if (tab === 'playlists') document.getElementById('view-playlists').style.display = 'block';
+        if (tab === 'library') document.getElementById('view-library').style.display = 'block';
+
+        document.querySelectorAll('.bottom-nav-btn').forEach(btn => btn.classList.remove('active'));
+        const btn = document.getElementById('nav-btn-' + tab);
+        if (btn) btn.classList.add('active');
+
         this.render();
       },
 
@@ -1094,12 +1216,7 @@
               return alert('Not enough storage space to save this track.');
             }
           }
-
-          Object.assign(editing, {
-            title: title || editing.title,
-            bpm: bpm || '---', key: key || '---', genre: genre || '---',
-            description, credits
-          });
+          Object.assign(editing, { title: title || editing.title, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits });
           const cur = this.queue[this.queueIndex];
           if (cur && cur.id === editing.id) this.updatePlayerMeta(editing);
         } else {
@@ -1114,19 +1231,14 @@
               break;
             }
             const finalTitle = (files.length === 1 && title) ? title : file.name.replace(/\.[^/.]+$/, "");
-            this.data.tracks.push({
-              id,
-              collectionId: this.currentCollectionId,
-              title: finalTitle,
-              bpm: bpm || '---', key: key || '---', genre: genre || '---',
-              description, credits
-            });
+            this.data.tracks.push({ id, collectionId: this.currentCollectionId, title: finalTitle, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits });
           }
         }
 
         await this.persistData();
         this.closeTrackModal();
-        this.renderCollectionDetail(this.currentCollectionId);
+        if(this.currentCollectionId) this.renderCollectionDetail(this.currentCollectionId);
+        else this.render();
       },
 
       updateMediaSession(t) {
@@ -1198,14 +1310,18 @@
         await localforage.removeItem(this.audioKey(id));
         await localforage.removeItem('peaks_' + id);
         this.data.tracks = this.data.tracks.filter(t => t.id !== id);
+        
+        // Rimuovi anche dalle playlist
+        this.data.playlists.forEach(pl => {
+          pl.trackIds = pl.trackIds.filter(tid => tid !== id);
+        });
+
         await this.persistData();
-        this.renderCollectionDetail(this.currentCollectionId);
+        this.render();
       },
 
       playTrack(track) {
-        this.queue = this.data.tracks.filter(t => t.collectionId === track.collectionId);
-        this.queueIndex = this.queue.findIndex(t => t.id === track.id);
-        this.loadTrack(track);
+        this.playQueue(this.data.tracks.filter(t => t.collectionId === track.collectionId), track);
       },
 
       async loadTrack(track) {
@@ -1238,23 +1354,187 @@
         else this.wavesurfer.load(src);
 
         if (this.speed !== 1.0) this.wavesurfer.setPlaybackRate(this.speed, true);
-        this.renderCollectionDetail(this.currentCollectionId);
+        this.render();
       },
 
       render() {
         if (this.currentCollectionId) this.renderCollectionDetail(this.currentCollectionId);
-        else this.renderCollectionsGrid();
+        else if (this.currentPlaylistId) this.renderPlaylistDetail(this.currentPlaylistId);
+        else if (this.currentTab === 'collections') this.renderCollectionsGrid();
+        else if (this.currentTab === 'playlists') this.renderPlaylistsGrid();
+        else if (this.currentTab === 'library') this.renderLibrary();
+      },
+
+      renderLibrary() {
+        const listEl = document.getElementById('library-tracks-list');
+        listEl.innerHTML = '';
+        if (this.data.tracks.length === 0) {
+          listEl.innerHTML = `<div style="text-align:center; padding:60px 0; color:#8c8c8c; font-size:14px;">Your library is empty.</div>`;
+          return;
+        }
+        const curTrack = this.queue[this.queueIndex];
+        this.data.tracks.forEach(t => {
+          const isCurrent = curTrack && curTrack.id === t.id;
+          listEl.appendChild(this.createTrackElement(t, isCurrent, false));
+        });
+      },
+
+      async savePlaylist() {
+        const title = document.getElementById('pl-title-input').value.trim();
+        const desc = document.getElementById('pl-desc-input').value.trim();
+        if (!title) return alert('Title is required');
+
+        this.data.playlists.push({ id: uid('pl'), title, desc, trackIds: [] });
+        await this.persistData();
+        document.getElementById('modal-playlist').classList.add('hidden');
+        this.render();
+      },
+
+      renderPlaylistsGrid() {
+        const grid = document.getElementById('playlists-grid');
+        grid.innerHTML = '';
+        if (this.data.playlists.length === 0) {
+          grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 80px 0; color:#8c8c8c; font-size:14px;">No playlists yet. Create one!</div>`;
+          return;
+        }
+        this.data.playlists.forEach(pl => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <div>
+              <div class="card-cover" style="background-image:none; display:flex; align-items:center; justify-content:center; font-size:32px;">🎵</div>
+              <div class="card-title">${esc(pl.title)}</div>
+              <div class="card-desc">${esc(pl.desc || 'No description')}</div>
+            </div>
+            <div class="card-footer">
+              <span>${pl.trackIds.length} tracks</span>
+            </div>
+          `;
+          card.onclick = () => {
+            this.currentPlaylistId = pl.id;
+            document.getElementById('view-playlists').style.display = 'none';
+            document.getElementById('view-playlist-detail').style.display = 'block';
+            this.render();
+          };
+          grid.appendChild(card);
+        });
+      },
+
+      renderPlaylistDetail(id) {
+        const pl = this.data.playlists.find(p => p.id === id);
+        if (!pl) return this.switchTab('playlists');
+
+        const headerEl = document.getElementById('playlist-header-detail');
+        headerEl.innerHTML = `
+          <div class="detail-cover" style="background-image:none; display:flex; align-items:center; justify-content:center; font-size:48px;">🎵</div>
+          <div style="flex:1;">
+            <div class="detail-title">${esc(pl.title)}</div>
+            <div class="detail-desc">${esc(pl.desc || 'No description')}</div>
+            <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px;">
+              <button id="btn-play-pl" class="btn btn-white" style="width: 48px; height: 48px; border-radius: 50%; padding: 0; display:flex; align-items:center; justify-content:center;">
+                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+              <button id="btn-delete-pl" class="btn" style="border-color:#ff4d4d; color:#ff4d4d;">Delete Playlist</button>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('btn-delete-pl').onclick = async () => {
+          if (!confirm("Delete this playlist? (Tracks won't be deleted from Library)")) return;
+          this.data.playlists = this.data.playlists.filter(p => p.id !== pl.id);
+          await this.persistData();
+          this.switchTab('playlists');
+        };
+
+        const tracks = pl.trackIds.map(tid => this.data.tracks.find(t => t.id === tid)).filter(Boolean);
+        document.getElementById('btn-play-pl').onclick = () => { if(tracks.length > 0) this.playQueue(tracks, tracks[0]); };
+
+        const listEl = document.getElementById('playlist-tracks-list');
+        listEl.innerHTML = '';
+        if (tracks.length === 0) listEl.innerHTML = `<div style="text-align:center; padding:60px 0; color:#8c8c8c; font-size:14px;">No tracks in this playlist.</div>`;
+        
+        const curTrack = this.queue[this.queueIndex];
+        tracks.forEach((t, index) => {
+          const isCurrent = curTrack && curTrack.id === t.id;
+          listEl.appendChild(this.createTrackElement(t, isCurrent, true, pl.id, index));
+        });
+      },
+
+      createTrackElement(t, isCurrent, isPlaylistView, playlistId = null, index = 0) {
+        const isMatch = !isCurrent && this.queue[this.queueIndex] && this.isHarmonicMatch(this.queue[this.queueIndex], t);
+        const item = document.createElement('div');
+        item.className = 'track-row' + (isCurrent ? ' is-active' : '');
+        
+        const reorderBtns = isPlaylistView ? `
+          <div style="display:flex; flex-direction:column; gap:2px; margin-right:8px;">
+            <button class="btn-reorder" onclick="app.moveTrack('${playlistId}', ${index}, -1)">▲</button>
+            <button class="btn-reorder" onclick="app.moveTrack('${playlistId}', ${index}, 1)">▼</button>
+          </div>
+        ` : '';
+
+        item.innerHTML = `
+          <div class="track-meta">
+            ${reorderBtns}
+            <button class="btn-play btn-play-track">${isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}</button>
+            <div>
+              <div style="font-size:14px; font-weight:600;">${esc(t.title)}</div>
+              <div style="font-size:12px; color:#8c8c8c;">${esc(t.genre)}</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:4px;">
+            ${isMatch ? '<span class="tag tag-match" style="margin-right:4px;">⚡ Match</span>' : ''}
+            <span class="tag" style="margin-right:8px;">${esc(t.bpm)} BPM</span>
+            <span class="tag" style="margin-right:8px;">${esc(t.key)}</span>
+            ${isPlaylistView ? `<button class="btn-quiet" style="font-size:12px; color:#ff4d4d; margin-right:8px;" onclick="app.removeFromPlaylist('${playlistId}', ${index})">Remove</button>` : ''}
+            <button class="btn-ctrl btn-more-track" style="opacity:.7;"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg></button>
+          </div>
+        `;
+
+        item.querySelector('.btn-play-track').onclick = () => {
+          if (isCurrent && this.wavesurfer) this.wavesurfer.playPause();
+          else if (isPlaylistView) {
+            const pl = this.data.playlists.find(p => p.id === playlistId);
+            const tracks = pl.trackIds.map(tid => this.data.tracks.find(x => x.id === tid)).filter(Boolean);
+            this.playQueue(tracks, t);
+          } else if (this.currentTab === 'library') {
+            this.playQueue(this.data.tracks, t);
+          } else {
+            this.playTrack(t);
+          }
+        };
+        item.querySelector('.btn-more-track').onclick = () => this.openTrackMenu(t);
+        return item;
+      },
+
+      async moveTrack(playlistId, index, dir) {
+        const pl = this.data.playlists.find(p => p.id === playlistId);
+        if (!pl) return;
+        if (index + dir < 0 || index + dir >= pl.trackIds.length) return;
+        
+        const temp = pl.trackIds[index];
+        pl.trackIds[index] = pl.trackIds[index + dir];
+        pl.trackIds[index + dir] = temp;
+        
+        await this.persistData();
+        this.render();
+      },
+
+      async removeFromPlaylist(playlistId, index) {
+        const pl = this.data.playlists.find(p => p.id === playlistId);
+        if (pl) {
+          pl.trackIds.splice(index, 1);
+          await this.persistData();
+          this.render();
+        }
       },
 
       renderCollectionsGrid() {
         const grid = document.getElementById('collections-grid');
         grid.innerHTML = '';
-
         if (this.data.collections.length === 0) {
           grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding: 80px 0; color:#8c8c8c; font-size:14px;">No collections yet. Create one to get started.</div>`;
           return;
         }
-
         this.data.collections.forEach(col => {
           const trackCount = this.data.tracks.filter(t => t.collectionId === col.id).length;
           const card = document.createElement('div');
@@ -1270,16 +1550,10 @@
               <span class="btn-edit-col" data-id="${col.id}" style="cursor:pointer; color:#fff;">Edit</span>
             </div>
           `;
-
           card.onclick = (e) => {
-            if (e.target.classList.contains('btn-edit-col')) {
-              e.stopPropagation();
-              this.openCollectionModal(col.id);
-            } else {
-              this.openCollectionDetail(col.id);
-            }
+            if (e.target.classList.contains('btn-edit-col')) { e.stopPropagation(); this.openCollectionModal(col.id); } 
+            else { this.openCollectionDetail(col.id); }
           };
-
           grid.appendChild(card);
         });
       },
@@ -1297,7 +1571,6 @@
         if (!col) return this.goHome();
 
         document.getElementById('nav-current').innerText = col.title;
-
         const headerEl = document.getElementById('collection-header-detail');
         headerEl.innerHTML = `
           <div class="detail-cover" style="background-image:${col.cover ? `url('${col.cover}')` : 'none'}"></div>
@@ -1323,13 +1596,12 @@
           const tracks = this.data.tracks.filter(t => t.collectionId === id);
           if (tracks.length > 0) this.playTrack(tracks[0]);
         };
-        document.getElementById('btn-shuffle-col').onclick = (e) => this.toggleShuffle();
+        document.getElementById('btn-shuffle-col').onclick = () => this.toggleShuffle();
         document.getElementById('btn-edit-col-head').onclick = () => this.openCollectionModal(col.id);
         document.getElementById('btn-delete-col').onclick = () => this.deleteCollection(col.id);
 
         const listEl = document.getElementById('tracks-list');
         listEl.innerHTML = '';
-
         const tracks = this.data.tracks.filter(t => t.collectionId === id);
         const curTrack = this.queue[this.queueIndex];
 
@@ -1340,36 +1612,7 @@
 
         tracks.forEach(t => {
           const isCurrent = curTrack && curTrack.id === t.id;
-          const isMatch = !isCurrent && curTrack && this.isHarmonicMatch(curTrack, t);
-
-          const item = document.createElement('div');
-          item.className = 'track-row' + (isCurrent ? ' is-active' : '');
-          item.innerHTML = `
-            <div class="track-meta">
-              <button class="btn-play btn-play-track" data-id="esc(t.id)">{isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}</button>
-              <div>
-                <div style="font-size:14px; font-weight:600;">${esc(t.title)}</div>
-                <div style="font-size:12px; color:#8c8c8c;">${esc(t.genre)}</div>
-              </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:4px;">
-              ${isMatch ? '<span class="tag tag-match" style="margin-right:4px;">⚡ Match</span>' : ''}
-              <span class="tag" style="margin-right:8px;">${esc(t.bpm)} BPM</span>
-              <span class="tag" style="margin-right:8px;">${esc(t.key)}</span>
-              <button class="btn-ctrl btn-more-track" data-id="${esc(t.id)}" style="opacity:.7;" aria-label="Track Options">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
-              </button>
-            </div>
-          `;
-
-          item.querySelector('.btn-play-track').onclick = () => {
-            if (isCurrent && this.wavesurfer) this.wavesurfer.playPause();
-            else this.playTrack(t);
-          };
-          
-          item.querySelector('.btn-more-track').onclick = () => this.openTrackMenu(t);
-
-          listEl.appendChild(item);
+          listEl.appendChild(this.createTrackElement(t, isCurrent, false));
         });
       },
 
@@ -1383,7 +1626,7 @@
         const btn = document.getElementById('btn-export');
         const label = btn.innerText;
         try {
-          const parts = [JSON.stringify({ crypt: 2, collections: this.data.collections }) + '\n'];
+          const parts = [JSON.stringify({ crypt: 2, collections: this.data.collections, playlists: this.data.playlists }) + '\n'];
           const tracks = this.data.tracks;
           for (let i = 0; i < tracks.length; i++) {
             btn.innerText = `${i + 1}/${tracks.length}`;
@@ -1432,15 +1675,12 @@
         await onLine(buf);
       },
 
-      // Import non distruttivo: unisce il backup ai dati attuali.
-      // Collezioni/brani gia' presenti (stesso id) restano com'erano; si aggiunge solo cio' che manca.
       async importTrack(meta, audio, ctx) {
         const t = { ...meta };
         delete t.audioData;
         const key = this.audioKey(t.id);
         if (ctx.localIds.has(t.id)) {
           ctx.skipped++;
-          // Unica eccezione: se il brano c'e' ma il suo file audio manca, lo recupero dal backup
           if (audio && !ctx.audioKeys.has(key)) {
             await localforage.setItem(key, await this.dataUrlToBlob(audio));
             ctx.audioKeys.add(key);
@@ -1469,28 +1709,33 @@
         const ctx = {
           localIds: new Set(this.data.tracks.map(t => t.id)),
           colIds: new Set(this.data.collections.map(c => c.id)),
+          plIds: new Set(this.data.playlists.map(p => p.id)),
           audioKeys: new Set(await localforage.keys()),
-          newCols: [], newTracks: [], written: [],
+          newCols: [], newTracks: [], newPlaylists: [], written: [],
           skipped: 0, restored: 0, recognized: false
         };
+
         const addCollections = (cols) => {
-          for (const c of cols) {
-            if (c && c.id && !ctx.colIds.has(c.id)) { ctx.colIds.add(c.id); ctx.newCols.push(c); }
-          }
+          for (const c of cols) { if (c && c.id && !ctx.colIds.has(c.id)) { ctx.colIds.add(c.id); ctx.newCols.push(c); } }
+        };
+        const addPlaylists = (pls) => {
+          for (const p of pls) { if (p && p.id && !ctx.plIds.has(p.id)) { ctx.plIds.add(p.id); ctx.newPlaylists.push(p); } }
         };
 
         try {
           await this.readLines(file, async (line) => {
             if (!line.trim()) return;
             const o = JSON.parse(line);
-            if (o.collections && o.tracks) {            // formato vecchio: tutto in un oggetto
+            if (o.collections && o.tracks) {
               ctx.recognized = true;
               addCollections(o.collections);
+              if(o.playlists) addPlaylists(o.playlists);
               for (const t of o.tracks) await this.importTrack(t, t.audioData, ctx);
-            } else if (o.collections) {                  // formato v2: riga delle collezioni
+            } else if (o.collections || o.playlists) {
               ctx.recognized = true;
-              addCollections(o.collections);
-            } else if (o.track) {                        // formato v2: un brano per riga
+              if (o.collections) addCollections(o.collections);
+              if (o.playlists) addPlaylists(o.playlists);
+            } else if (o.track) {
               ctx.recognized = true;
               await this.importTrack(o.track, o.audio, ctx);
             }
@@ -1498,10 +1743,11 @@
           });
           if (!ctx.recognized) throw new Error('Invalid backup file');
 
-          if (ctx.newCols.length || ctx.newTracks.length) {
+          if (ctx.newCols.length || ctx.newTracks.length || ctx.newPlaylists.length) {
             this.data = {
               ...this.data,
               collections: [...this.data.collections, ...ctx.newCols],
+              playlists: [...this.data.playlists, ...ctx.newPlaylists],
               tracks: [...this.data.tracks, ...ctx.newTracks]
             };
             await this.persistData();
@@ -1510,6 +1756,7 @@
           alert(
             `Backup merged.\n` +
             `New collections: ${ctx.newCols.length}\n` +
+            `New playlists: ${ctx.newPlaylists.length}\n` +
             `New tracks: ${ctx.newTracks.length}\n` +
             `Already present (kept as is): ${ctx.skipped}` +
             (ctx.restored ? `\nMissing audio restored: ${ctx.restored}` : '')
@@ -1517,7 +1764,6 @@
           this.goHome();
         } catch (err) {
           console.error(err);
-          // Import fallito a meta': tolgo solo i file audio scritti da questa operazione
           for (const k of ctx.written) { try { await localforage.removeItem(k); } catch (_) {} }
           alert('Failed to import backup: ' + err.message + '\nNothing was changed.');
         } finally {
@@ -1541,4 +1787,3 @@
   </script>
 </body>
 </html>
-
