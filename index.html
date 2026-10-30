@@ -79,7 +79,7 @@
     .label { font-size: 12px; color: var(--mute); margin-bottom: 6px; display: block; }
 
     /* Player */
-    #global-player { position: fixed; bottom: calc(52px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; background: rgba(0,0,0,.88); border-top: 1px solid var(--line); padding: 14px 20px; z-index: 40; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
+    #global-player { position: fixed; bottom: calc(48px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; background: rgba(0,0,0,.88); border-top: 1px solid var(--line); padding: 14px 20px; z-index: 40; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); }
     #global-player.hidden { display: none !important; }
     .player-container { max-width: 1200px; margin: 0 auto; display: flex; gap: 24px; align-items: center; }
     .player-top { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
@@ -476,6 +476,16 @@
       <div>
         <label id="track-audio-label" class="label">Audio file (MP3, WAV)</label>
         <input type="file" id="track-audio-file" accept="audio/*" multiple class="input-file-native">
+      </div>
+      <div>
+        <label class="label">Track cover</label>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div id="track-cover-preview" style="width:64px; height:64px; flex-shrink:0; border-radius:4px; background:var(--soft); background-size:cover; background-position:center; display:flex; align-items:center; justify-content:center; color:var(--mute);">♪</div>
+          <div style="flex:1; min-width:0;">
+            <input type="file" id="track-cover-file" accept="image/*" class="input-file-native">
+            <button type="button" id="btn-remove-track-cover" class="btn btn-quiet" style="margin-top:6px; padding-left:0;">Remove cover</button>
+          </div>
+        </div>
       </div>
       <div>
         <label class="label">Title</label>
@@ -979,6 +989,28 @@
         document.getElementById('btn-open-add-library-track').onclick = () => this.openTrackModal();
         document.getElementById('btn-cancel-track').onclick = () => this.closeTrackModal();
         document.getElementById('btn-save-track').onclick = () => this.saveTrack();
+        document.getElementById('track-cover-file').addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          if (!file.type.startsWith('image/')) { alert('Select a valid image file.'); e.target.value = ''; return; }
+          const reader = new FileReader();
+          reader.onload = () => {
+            this.tempTrackCover = reader.result;
+            this.removeTrackCover = false;
+            const preview = document.getElementById('track-cover-preview');
+            preview.style.backgroundImage = `url("${this.tempTrackCover}")`;
+            preview.textContent = '';
+          };
+          reader.readAsDataURL(file);
+        });
+        document.getElementById('btn-remove-track-cover').onclick = () => {
+          this.tempTrackCover = null;
+          this.removeTrackCover = true;
+          document.getElementById('track-cover-file').value = '';
+          const preview = document.getElementById('track-cover-preview');
+          preview.style.backgroundImage = 'none';
+          preview.textContent = '♪';
+        };
 
         // Controlli Player
         document.getElementById('player-play-btn').onclick = () => this.wavesurfer && this.wavesurfer.playPause();
@@ -1233,6 +1265,8 @@
       },
 
       editingTrackId: null,
+      tempTrackCover: null,
+      removeTrackCover: false,
 
       creditsToText(credits) {
         return (credits || []).map(c => c.role ? `${c.role}: ${c.name}` : c.name).join('\n');
@@ -1259,6 +1293,12 @@
         document.getElementById('track-desc-input').value = t ? (t.description || '') : '';
         document.getElementById('track-credits-input').value = t ? this.creditsToText(t.credits) : '';
         document.getElementById('track-audio-file').value = '';
+        document.getElementById('track-cover-file').value = '';
+        this.tempTrackCover = t ? (t.cover || null) : null;
+        this.removeTrackCover = false;
+        const coverPreview = document.getElementById('track-cover-preview');
+        coverPreview.style.backgroundImage = this.tempTrackCover ? `url("${this.tempTrackCover}")` : 'none';
+        coverPreview.textContent = this.tempTrackCover ? '' : '♪';
         document.getElementById('modal-track').classList.remove('hidden');
       },
 
@@ -1291,6 +1331,8 @@
             }
           }
           Object.assign(editing, { title: title || editing.title, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits });
+          if (this.removeTrackCover) delete editing.cover;
+          else if (this.tempTrackCover) editing.cover = this.tempTrackCover;
           const cur = this.queue[this.queueIndex];
           if (cur && cur.id === editing.id) this.updatePlayerMeta(editing);
         } else {
@@ -1307,7 +1349,7 @@
             const finalTitle = (files.length === 1 && title) ? title : file.name.replace(/\.[^/.]+$/, "");
             // Se l'upload parte dalla Library, currentCollectionId è null:
             // la traccia resta nella Library senza appartenere a una collection.
-            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits });
+            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits, cover: this.tempTrackCover || null });
           }
         }
 
@@ -1325,7 +1367,7 @@
             title: t.title,
             artist: 'Crypt',
             album: col ? col.title : '',
-            artwork: (col && col.cover) ? [{ src: col.cover, sizes: '500x500', type: 'image/jpeg' }] : []
+            artwork: (t.cover || (col && col.cover)) ? [{ src: t.cover || col.cover, sizes: '500x500', type: 'image/jpeg' }] : []
           });
         } catch (_) {}
       },
@@ -1412,7 +1454,8 @@
         document.getElementById('full-sub').innerText = document.getElementById('player-sub').innerText;
 
         const parentCol = this.data.collections.find(c => c.id === track.collectionId);
-        const coverCss = (parentCol && parentCol.cover) ? `url('${parentCol.cover}')` : 'none';
+        const trackCover = track.cover || (parentCol && parentCol.cover) || null;
+        const coverCss = trackCover ? `url('${trackCover}')` : 'none';
         document.getElementById('player-cover').style.backgroundImage = coverCss;
         document.getElementById('full-bg').style.backgroundImage = coverCss;
         this.updateMediaSession(track);
@@ -1551,6 +1594,7 @@
         item.innerHTML = `
           <div class="track-meta">
             ${reorderBtns}
+            <div style="width:38px; height:38px; flex-shrink:0; border-radius:3px; background:var(--soft) ${t.cover ? `url("${t.cover}") center/cover` : ''}; display:flex; align-items:center; justify-content:center; color:var(--mute);">${t.cover ? '' : '♪'}</div>
             <button class="btn-play btn-play-track">${isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}</button>
             <div>
               <div style="font-size:14px; font-weight:600;">${esc(t.title)}</div>
