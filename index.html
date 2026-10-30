@@ -21,6 +21,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+  <!-- SortableJS for Drag & Drop Queue -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 
   <style>
     :root { --fg:#fff; --mute:#8c8c8c; --line:rgba(255,255,255,.14); --line-hi:rgba(255,255,255,.55); --soft:rgba(255,255,255,.06); --accent:#ffffff; }
@@ -34,11 +36,10 @@
     .logo-text { font-size: 20px; font-weight: 700; letter-spacing: -.04em; }
 
     .btn-group { display: flex; gap: 6px; align-items: center; }
-    .btn { background: transparent; border: 1px solid var(--line); color: var(--fg); padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+    .btn { background: transparent; border: 1px solid var(--line); color: var(--fg); padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; transition: border-color .15s, background .15s, color .15s; display: flex; align-items: center; justify-content: center; }
     .btn:hover { border-color: var(--line-hi); }
     .btn-white { background: #fff; color: #000; border-color: #fff; font-weight: 600; }
     .btn-white:hover { background: #d9d9d9; border-color: #d9d9d9; }
-    .btn-delete { position: absolute; top: 0; right: 0; color: var(--mute); }
 
     main { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
     .section-title { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
@@ -148,9 +149,12 @@
     .menu-row:last-child { border-bottom: none; }
     .menu-row:hover { background: rgba(255,255,255,.05); }
 
-    .queue-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); cursor: pointer; transition: background .15s; }
+    .queue-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); transition: background .15s; background: #000; }
     .queue-row:hover { background: rgba(255,255,255,.05); }
     .queue-row.is-current { border-color: #fff; background: rgba(255,255,255,.1); }
+    .queue-row.sortable-ghost { opacity: 0.4; }
+    .drag-handle { color: var(--mute); cursor: grab; padding: 4px; display: flex; align-items: center; justify-content: center; }
+    .drag-handle:active { cursor: grabbing; }
 
     @media (max-width: 520px) {
       header { padding: 12px 14px; }
@@ -168,8 +172,8 @@
       .full-inner { padding-left: 16px; padding-right: 16px; }
       .full-body { gap: 20px; }
       .tag { display: none; }
-      #modal-info, #modal-queue, #modal-player-menu, #modal-track-menu { align-items: flex-end; padding: 0; }
-      .info-box { max-width: none; max-height: 80%; border-radius: 16px 16px 0 0; border-bottom: none; }
+      #modal-info, #modal-queue, #modal-player-menu, #modal-track-menu, #modal-search { align-items: flex-end; padding: 0; }
+      .info-box { max-width: none; max-height: 85vh; border-radius: 16px 16px 0 0; border-bottom: none; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
@@ -181,6 +185,9 @@
       <div class="logo-text">Crypt.</div>
     </div>
     <div class="btn-group">
+      <button id="btn-search-open" class="btn" title="Search Tracks" style="padding: 8px 10px;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+      </button>
       <button id="btn-export" class="btn" title="Export Backup">Backup</button>
       <button id="btn-import-trigger" class="btn" title="Import Backup">Import</button>
       <input type="file" id="import-file-input" accept=".json" style="display:none">
@@ -312,6 +319,26 @@
         <button id="full-repeat-btn" class="btn-ctrl" aria-label="Repeat" style="position: absolute; right: 24px;">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4M3 11v-1a4 4 0 014-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 01-4 4H3"/></svg>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RICERCA GLOBALE -->
+  <div id="modal-search" class="modal-overlay hidden">
+    <div class="modal-box info-box bottom-sheet" style="display:flex; flex-direction:column;">
+      <div class="info-head" style="margin-bottom: 8px;">
+        <div class="section-title" style="font-size:20px;">Search Tracks</div>
+        <button id="search-close" class="btn-ctrl">✕</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom: 12px;">
+        <input type="text" id="search-q" class="input-field" placeholder="Search title or artist...">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+          <input type="text" id="search-bpm-filter" class="input-field" placeholder="BPM (e.g. 140)">
+          <input type="text" id="search-key-filter" class="input-field" placeholder="Key (e.g. C min)">
+        </div>
+      </div>
+      <div id="search-results-list" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+        <!-- Risultati della ricerca -->
       </div>
     </div>
   </div>
@@ -471,7 +498,7 @@
         <label class="label">Title</label>
         <input type="text" id="track-title-input" class="input-field" placeholder="Track Title">
       </div>
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
         <div>
           <label class="label">BPM</label>
           <input type="text" id="track-bpm-input" placeholder="140" class="input-field">
@@ -479,10 +506,6 @@
         <div>
           <label class="label">Key</label>
           <input type="text" id="track-key-input" placeholder="C min" class="input-field">
-        </div>
-        <div>
-          <label class="label">Genre</label>
-          <input type="text" id="track-genre-input" placeholder="Trap" class="input-field">
         </div>
       </div>
       <div>
@@ -520,7 +543,6 @@
       tempCroppedImageBase64: null,
       editingCollectionId: null,
 
-      // State controlli
       isShuffle: false,
       repeatMode: 'off',
       speed: 1.0,
@@ -528,10 +550,16 @@
       loopA: null,
       loopB: null,
       isLoopActive: false,
+<<<<<<< HEAD
       
+=======
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
       menuTrack: null, 
+      
+      queueSortable: null,
 
       async init() {
+<<<<<<< HEAD
         localforage.config({ name: 'CRYPT_STORAGE', storeName: 'crypt_data' });
         const savedData = await localforage.getItem('crypt_app_data');
         if (savedData) {
@@ -540,11 +568,54 @@
         }
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
         try { await this.migrateLegacyAudio(); } catch (err) { console.warn('Audio migration:', err); }
+=======
+        try {
+          localforage.config({ name: 'CRYPT_STORAGE', storeName: 'crypt_data' });
+          const savedData = await localforage.getItem('crypt_app_data');
+          if (savedData) this.data = savedData;
+          if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+          
+          // Migrazione automatica: pulisce vecchi '---' e rimuove vecchi "genre"
+          this.data.tracks.forEach(t => {
+             if (t.bpm === '---') t.bpm = '';
+             if (t.key === '---') t.key = '';
+             delete t.genre;
+          });
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
 
-        this.initWaveSurfer();
-        this.bindEvents();
-        this.render();
-        this.updateStorageInfo();
+          try { await this.migrateLegacyAudio(); } catch (err) { console.warn('Audio migration:', err); }
+
+          this.initWaveSurfer();
+          this.initSortableQueue();
+          this.bindEvents();
+          this.render();
+          this.updateStorageInfo();
+        } catch (error) {
+          console.error("Errore fatale in app.init():", error);
+          alert("L'app non si è avviata correttamente. Errore: " + error.message);
+        }
+      },
+
+      initSortableQueue() {
+        this.queueSortable = new Sortable(document.getElementById('queue-list'), {
+          animation: 150,
+          handle: '.drag-handle', // Solo la maniglia può avviare il drag per evitare problemi di touch/click
+          onEnd: (evt) => {
+            if (evt.oldIndex === evt.newIndex) return;
+            const item = this.queue.splice(evt.oldIndex, 1)[0];
+            this.queue.splice(evt.newIndex, 0, item);
+            
+            // Aggiorniamo l'indice in modo che la canzone corrente non si perda
+            if (this.queueIndex === evt.oldIndex) {
+              this.queueIndex = evt.newIndex;
+            } else if (this.queueIndex > evt.oldIndex && this.queueIndex <= evt.newIndex) {
+              this.queueIndex--;
+            } else if (this.queueIndex < evt.oldIndex && this.queueIndex >= evt.newIndex) {
+              this.queueIndex++;
+            }
+            this.showQueue(); // Ricarichiamo gli stili e l'ordine aggiornato
+          }
+        });
       },
 
       audioKey(id) { return 'audio_' + id; },
@@ -697,6 +768,10 @@
       },
 
       stepTrack(dir) {
+        if (!this.queue.length && this.currentCollectionId) {
+            this.queue = this.data.tracks.filter(t => t.collectionId === this.currentCollectionId);
+        }
+        
         if (!this.queue.length) return;
         if (dir > 0 && this.isShuffle) {
           let r = Math.floor(Math.random() * this.queue.length);
@@ -824,29 +899,45 @@
           const diffDouble = Math.abs(bpmA * 2 - bpmB);
           if (diff <= 5 || diffHalf <= 5 || diffDouble <= 5) match = true;
         }
-        if (cur.key && t.key && cur.key !== '---' && t.key !== '---') {
+        if (cur.key && t.key) {
           if (cur.key.trim().toLowerCase() === t.key.trim().toLowerCase()) match = true;
         }
         return match;
       },
 
       showQueue() {
+        if (!this.queue.length && this.currentCollectionId) {
+            this.queue = this.data.tracks.filter(t => t.collectionId === this.currentCollectionId);
+        }
+          
         const list = document.getElementById('queue-list');
         list.innerHTML = '';
         if (!this.queue.length) {
           list.innerHTML = '<div style="color:var(--mute); font-size:13px; text-align:center; padding:20px;">No tracks in queue.</div>';
         } else {
           this.queue.forEach((t, idx) => {
+            const showBpm = t.bpm ? `${esc(t.bpm)} BPM` : '';
+            const showKey = t.key ? esc(t.key) : '';
+            const metaInfo = [showBpm, showKey].filter(Boolean).join(' | ');
+
             const row = document.createElement('div');
             row.className = 'queue-row' + (idx === this.queueIndex ? ' is-current' : '');
+            
             row.innerHTML = `
-              <div>
-                <div style="font-weight:600; font-size:13px;">${esc(t.title)}</div>
-                <div style="font-size:11px; color:var(--mute);">${esc(t.bpm)} BPM | ${esc(t.key)}</div>
+              <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                <div class="drag-handle" title="Drag to reorder">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 15h18v-2H3v2zm0-4h18V9H3v2zm0-6v2h18V5H3zm0 14h18v-2H3v2z"/></svg>
+                </div>
+                <div style="flex:1; min-width:0; cursor:pointer;" class="queue-click-area">
+                  <div style="font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(t.title)}</div>
+                  ${metaInfo ? `<div style="font-size:11px; color:var(--mute);">${metaInfo}</div>` : ''}
+                </div>
               </div>
-              ${idx === this.queueIndex ? '<span style="font-size:10px; font-weight:700;">PLAYING</span>' : ''}
+              ${idx === this.queueIndex ? '<span style="font-size:10px; font-weight:700; margin-left:8px;">PLAYING</span>' : ''}
             `;
-            row.onclick = () => {
+            
+            // Cliccando sul testo (non sulla maniglia) si avvia la traccia
+            row.querySelector('.queue-click-area').onclick = () => {
               this.queueIndex = idx;
               this.loadTrack(t);
               document.getElementById('modal-queue').classList.add('hidden');
@@ -857,11 +948,83 @@
         document.getElementById('modal-queue').classList.remove('hidden');
       },
 
+      openSearch() {
+        document.getElementById('modal-search').classList.remove('hidden');
+        document.getElementById('search-q').value = '';
+        document.getElementById('search-bpm-filter').value = '';
+        document.getElementById('search-key-filter').value = '';
+        this.renderSearch();
+        // Focus solo su desktop per non far saltare la tastiera fastidiosa su mobile
+        if(window.innerWidth > 520) document.getElementById('search-q').focus();
+      },
+
+      renderSearch() {
+        const q = document.getElementById('search-q').value.toLowerCase().trim();
+        const b = document.getElementById('search-bpm-filter').value.toLowerCase().trim();
+        const k = document.getElementById('search-key-filter').value.toLowerCase().trim();
+        
+        const list = document.getElementById('search-results-list');
+        list.innerHTML = '';
+
+        const results = this.data.tracks.filter(t => {
+          let match = true;
+          // Controlla titolo e artisti
+          if (q) {
+             const titleMatch = t.title.toLowerCase().includes(q);
+             const credsMatch = t.credits && JSON.stringify(t.credits).toLowerCase().includes(q);
+             if(!titleMatch && !credsMatch) match = false;
+          }
+          if (b && (!t.bpm || !t.bpm.toLowerCase().includes(b))) match = false;
+          if (k && (!t.key || !t.key.toLowerCase().includes(k))) match = false;
+          return match;
+        });
+
+        if (!results.length) {
+          list.innerHTML = '<div style="color:var(--mute); font-size:13px; text-align:center; padding:30px 20px;">No tracks found matching these filters.</div>';
+          return;
+        }
+
+        results.forEach(t => {
+          const col = this.data.collections.find(c => c.id === t.collectionId);
+          const colName = col ? col.title : 'Unknown';
+          const metaInfo = [t.bpm ? t.bpm + ' BPM' : '', t.key ? t.key : ''].filter(Boolean).join(' | ');
+
+          const row = document.createElement('div');
+          row.className = 'queue-row';
+          row.innerHTML = `
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(t.title)}</div>
+              <div style="font-size:11px; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${esc(colName)} ${metaInfo ? `• ${metaInfo}` : ''}
+              </div>
+            </div>
+            <button class="btn-play" style="width:28px; height:28px; min-width:28px; font-size:11px; margin-left:8px;">▶</button>
+          `;
+          
+          row.onclick = () => {
+            document.getElementById('modal-search').classList.add('hidden');
+            this.playTrack(t); // Questo imposta anche la coda corretta relativa alla sua collezione
+          };
+          list.appendChild(row);
+        });
+      },
+
       bindEvents() {
         document.getElementById('btn-logo').onclick = () => this.goHome();
         document.getElementById('nav-home').onclick = () => this.goHome();
 
+<<<<<<< HEAD
         // Modali
+=======
+        // Search Events
+        document.getElementById('btn-search-open').onclick = () => this.openSearch();
+        document.getElementById('search-close').onclick = () => document.getElementById('modal-search').classList.add('hidden');
+        ['search-q', 'search-bpm-filter', 'search-key-filter'].forEach(id => {
+          document.getElementById(id).addEventListener('input', () => this.renderSearch());
+        });
+
+        document.getElementById('btn-open-create-collection').onclick = () => this.openCollectionModal();
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
@@ -906,7 +1069,6 @@
         document.getElementById('btn-cancel-track').onclick = () => this.closeTrackModal();
         document.getElementById('btn-save-track').onclick = () => this.saveTrack();
 
-        // Controlli Player
         document.getElementById('player-play-btn').onclick = () => this.wavesurfer && this.wavesurfer.playPause();
         document.getElementById('player-prev-btn').onclick = () => this.stepTrack(-1);
         document.getElementById('player-next-btn').onclick = () => this.stepTrack(1);
@@ -917,12 +1079,14 @@
         document.getElementById('full-repeat-btn').onclick = () => this.toggleRepeat();
         document.getElementById('full-close').onclick = () => this.closeFull();
 
-        // Queue
         document.getElementById('btn-queue').onclick = () => this.showQueue();
         document.getElementById('full-queue-btn').onclick = () => this.showQueue();
         document.getElementById('queue-close').onclick = () => document.getElementById('modal-queue').classList.add('hidden');
 
+<<<<<<< HEAD
         // Menu Player
+=======
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
         document.getElementById('btn-player-more').onclick = () => this.openPlayerMenu();
         document.getElementById('full-more-btn').onclick = () => this.openPlayerMenu();
         document.getElementById('pm-close').onclick = () => document.getElementById('modal-player-menu').classList.add('hidden');
@@ -937,7 +1101,10 @@
         document.getElementById('pm-loop-b').onclick = () => this.setLoopB();
         document.getElementById('pm-loop-clr').onclick = () => this.clearLoop();
 
+<<<<<<< HEAD
         // Menu Traccia
+=======
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
         document.getElementById('tm-close').onclick = () => document.getElementById('modal-track-menu').classList.add('hidden');
         document.getElementById('tm-info').onclick = () => {
           document.getElementById('modal-track-menu').classList.add('hidden');
@@ -954,10 +1121,17 @@
           document.getElementById('modal-track-menu').classList.add('hidden');
           if(this.menuTrack) this.deleteTrack(this.menuTrack.id);
         };
+<<<<<<< HEAD
         document.getElementById('info-close').onclick = () => document.getElementById('modal-info').classList.add('hidden');
 
         // Click Fuori dai Modali
         const modals = ['modal-info', 'modal-queue', 'modal-player-menu', 'modal-track-menu', 'modal-add-to-playlist'];
+=======
+
+        document.getElementById('info-close').onclick = () => document.getElementById('modal-info').classList.add('hidden');
+
+        const modals = ['modal-info', 'modal-queue', 'modal-player-menu', 'modal-track-menu', 'modal-search'];
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
         modals.forEach(m => {
           const el = document.getElementById(m);
           if(el) el.addEventListener('click', (e) => { if (e.target.id === m) e.target.classList.add('hidden'); });
@@ -1174,14 +1348,12 @@
       openTrackModal(trackId) {
         const t = typeof trackId === 'string' ? this.data.tracks.find(x => x.id === trackId) : null;
         this.editingTrackId = t ? t.id : null;
-        const clean = v => (v && v !== '---') ? v : '';
         document.getElementById('track-modal-title').innerText = t ? 'Edit track' : 'Add track';
         document.getElementById('btn-save-track').innerText = t ? 'Save' : 'Upload';
         document.getElementById('track-audio-label').innerText = t ? 'Replace audio file (optional)' : 'Audio file (MP3, WAV)';
         document.getElementById('track-title-input').value = t ? t.title : '';
-        document.getElementById('track-bpm-input').value = t ? clean(t.bpm) : '';
-        document.getElementById('track-key-input').value = t ? clean(t.key) : '';
-        document.getElementById('track-genre-input').value = t ? clean(t.genre) : '';
+        document.getElementById('track-bpm-input').value = t ? t.bpm : '';
+        document.getElementById('track-key-input').value = t ? t.key : '';
         document.getElementById('track-desc-input').value = t ? (t.description || '') : '';
         document.getElementById('track-credits-input').value = t ? this.creditsToText(t.credits) : '';
         document.getElementById('track-audio-file').value = '';
@@ -1197,7 +1369,6 @@
         const title = document.getElementById('track-title-input').value.trim();
         const bpm = document.getElementById('track-bpm-input').value.trim();
         const key = document.getElementById('track-key-input').value.trim();
-        const genre = document.getElementById('track-genre-input').value.trim();
         const description = document.getElementById('track-desc-input').value.trim();
         const credits = this.parseCredits(document.getElementById('track-credits-input').value);
 
@@ -1216,7 +1387,16 @@
               return alert('Not enough storage space to save this track.');
             }
           }
+<<<<<<< HEAD
           Object.assign(editing, { title: title || editing.title, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits });
+=======
+
+          Object.assign(editing, {
+            title: title || editing.title,
+            bpm: bpm || '', key: key || '',
+            description, credits
+          });
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
           const cur = this.queue[this.queueIndex];
           if (cur && cur.id === editing.id) this.updatePlayerMeta(editing);
         } else {
@@ -1231,7 +1411,17 @@
               break;
             }
             const finalTitle = (files.length === 1 && title) ? title : file.name.replace(/\.[^/.]+$/, "");
+<<<<<<< HEAD
             this.data.tracks.push({ id, collectionId: this.currentCollectionId, title: finalTitle, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits });
+=======
+            this.data.tracks.push({
+              id,
+              collectionId: this.currentCollectionId,
+              title: finalTitle,
+              bpm: bpm || '', key: key || '',
+              description, credits
+            });
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
           }
         }
 
@@ -1256,7 +1446,7 @@
 
       updatePlayerMeta(t) {
         this.updateMediaSession(t);
-        const sub = [t.bpm && t.bpm !== '---' && `${t.bpm} BPM`, t.key !== '---' && t.key, t.genre !== '---' && t.genre].filter(Boolean).join(', ') || '--';
+        const sub = [t.bpm && `${t.bpm} BPM`, t.key].filter(Boolean).join(', ') || '--';
         document.getElementById('player-title').innerText = t.title;
         document.getElementById('player-sub').innerText = sub;
         document.getElementById('full-title').innerText = t.title;
@@ -1264,9 +1454,8 @@
       },
 
       showInfo(t) {
-        const clean = v => (v && v !== '---') ? v : null;
         document.getElementById('info-title').innerText = t.title;
-        document.getElementById('info-sub').innerText = [clean(t.bpm) && `${t.bpm} BPM`, clean(t.key), clean(t.genre)].filter(Boolean).join(', ');
+        document.getElementById('info-sub').innerText = [t.bpm && `${t.bpm} BPM`, t.key].filter(Boolean).join(', ');
         const body = document.getElementById('info-body');
         body.innerHTML = '';
         const section = (label) => {
@@ -1327,7 +1516,7 @@
       async loadTrack(track) {
         document.getElementById('global-player').classList.remove('hidden');
         document.getElementById('player-title').innerText = track.title;
-        document.getElementById('player-sub').innerText = [track.bpm && `${track.bpm} BPM`, track.key, track.genre].filter(Boolean).join(', ') || '--';
+        document.getElementById('player-sub').innerText = [track.bpm && `${track.bpm} BPM`, track.key].filter(Boolean).join(', ') || '--';
         document.getElementById('player-time').innerText = '0:00';
         document.getElementById('player-duration').innerText = '0:00';
         document.getElementById('full-time').innerText = '0:00';
@@ -1612,7 +1801,42 @@
 
         tracks.forEach(t => {
           const isCurrent = curTrack && curTrack.id === t.id;
+<<<<<<< HEAD
           listEl.appendChild(this.createTrackElement(t, isCurrent, false));
+=======
+          const isMatch = !isCurrent && curTrack && this.isHarmonicMatch(curTrack, t);
+          
+          const showBpm = t.bpm ? `<span class="tag" style="margin-right:8px;">${esc(t.bpm)} BPM</span>` : '';
+          const showKey = t.key ? `<span class="tag" style="margin-right:8px;">${esc(t.key)}</span>` : '';
+
+          const item = document.createElement('div');
+          item.className = 'track-row' + (isCurrent ? ' is-active' : '');
+          item.innerHTML = `
+            <div class="track-meta">
+              <button class="btn-play btn-play-track" data-id="${esc(t.id)}">
+                ${isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}
+              </button>
+              <div style="font-size:14px; font-weight:600;">${esc(t.title)}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:4px;">
+              ${isMatch ? '<span class="tag tag-match" style="margin-right:4px;">⚡ Match</span>' : ''}
+              ${showBpm}
+              ${showKey}
+              <button class="btn-ctrl btn-more-track" data-id="${esc(t.id)}" style="opacity:.7;" aria-label="Track Options">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+              </button>
+            </div>
+          `;
+
+          item.querySelector('.btn-play-track').onclick = () => {
+            if (isCurrent && this.wavesurfer) this.wavesurfer.playPause();
+            else this.playTrack(t);
+          };
+          
+          item.querySelector('.btn-more-track').onclick = () => this.openTrackMenu(t);
+
+          listEl.appendChild(item);
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
         });
       },
 
@@ -1731,10 +1955,16 @@
               addCollections(o.collections);
               if(o.playlists) addPlaylists(o.playlists);
               for (const t of o.tracks) await this.importTrack(t, t.audioData, ctx);
+<<<<<<< HEAD
             } else if (o.collections || o.playlists) {
               ctx.recognized = true;
               if (o.collections) addCollections(o.collections);
               if (o.playlists) addPlaylists(o.playlists);
+=======
+            } else if (o.collections) {
+              ctx.recognized = true;
+              addCollections(o.collections);
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
             } else if (o.track) {
               ctx.recognized = true;
               await this.importTrack(o.track, o.audio, ctx);
@@ -1786,4 +2016,8 @@
     }
   </script>
 </body>
+<<<<<<< HEAD
 </html>
+=======
+</html>
+>>>>>>> f677b7bf2e3e65c8dc5b54790a6362078f5266f8
