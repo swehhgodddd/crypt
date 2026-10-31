@@ -382,6 +382,8 @@
       </div>
       <div style="display:flex; flex-direction:column;">
         <div class="menu-row" id="tm-info">Info & Description</div>
+        <!-- AGGIUNTO IL TASTO SHARE -->
+        <div class="menu-row" id="tm-share">Share Track</div>
         <div class="menu-row" id="tm-add-playlist">Add to Playlist</div>
         <div class="menu-row" id="tm-edit">Edit Track</div>
         <div class="menu-row" id="tm-delete" style="color: #ff4d4d;">Delete Track</div>
@@ -882,6 +884,41 @@
         }
         document.getElementById('modal-add-to-playlist').classList.remove('hidden');
       },
+      
+      // NUOVA FUNZIONE: Condivisione Traccia
+      async shareTrack(track) {
+        try {
+          const blob = await localforage.getItem(this.audioKey(track.id));
+          if (!blob) {
+            return alert('File audio non trovato per la condivisione.');
+          }
+          
+          let ext = 'mp3';
+          let mimeType = blob.type || 'audio/mpeg';
+          if (mimeType.includes('wav')) ext = 'wav';
+          
+          const file = new File([blob], `${track.title}.${ext}`, { type: mimeType });
+          
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: track.title,
+              text: `Ascolta ${track.title} da Crypt.`,
+              files: [file]
+            });
+          } else {
+            // Fallback: scarica il file se la condivisione nativa non è supportata
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${track.title}.${ext}`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+          }
+        } catch (err) {
+          console.error('Errore durante la condivisione:', err);
+          alert('Condivisione non completata o non supportata dal tuo dispositivo.');
+        }
+      },
 
       isHarmonicMatch(cur, t) {
         if (!cur || !t || cur.id === t.id) return false;
@@ -1099,6 +1136,13 @@
           document.getElementById('modal-track-menu').classList.add('hidden');
           if(this.menuTrack) this.showInfo(this.menuTrack);
         };
+        
+        // CLICK HANDLER PER CONDIVISIONE TRACCIA
+        document.getElementById('tm-share').onclick = () => {
+          document.getElementById('modal-track-menu').classList.add('hidden');
+          if (this.menuTrack) this.shareTrack(this.menuTrack);
+        };
+        
         document.getElementById('tm-add-playlist').onclick = () => {
           if (this.menuTrack) this.openAddToPlaylistModal(this.menuTrack);
         };
