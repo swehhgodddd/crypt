@@ -157,6 +157,13 @@
     .queue-drag-handle:active { cursor: grabbing; color: #fff; }
     .queue-track-info { flex: 1; min-width: 0; pointer-events: none; }
 
+    /* Stili per la barra di ricerca e i filtri */
+    .btn-filter { background: transparent; color: var(--mute); border-color: var(--line); flex-shrink: 0; padding: 6px 12px; }
+    .btn-filter:hover { border-color: var(--line-hi); color: #fff; }
+    .btn-filter.active { background: #fff; color: #000; border-color: #fff; font-weight: 600; }
+    .filter-group { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; -ms-overflow-style: none; scrollbar-width: none; }
+    .filter-group::-webkit-scrollbar { display: none; }
+
     @media (max-width: 520px) {
       header { padding: 12px 14px; }
       .btn { padding: 8px 11px; }
@@ -242,13 +249,27 @@
 
     <!-- LIBRARY VIEW -->
     <section id="view-library" style="display:none;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom: 44px;">
+      <!-- Header allineato al centro come le altre schermate -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
         <div>
           <div class="section-title display">Library</div>
           <div class="section-sub" style="margin-bottom:0;">All your unique tracks in one place.</div>
         </div>
         <button id="btn-open-add-library-track" class="btn btn-white">Upload track</button>
       </div>
+
+      <!-- Barra di Ricerca e Filtri -->
+      <div style="margin-bottom: 32px; display:flex; flex-direction:column; gap:12px;">
+        <input type="text" id="library-search-input" class="input-field" placeholder="Search tracks...">
+        <div class="filter-group">
+          <button class="btn btn-filter active" data-filter="all">All</button>
+          <button class="btn btn-filter" data-filter="title">Title</button>
+          <button class="btn btn-filter" data-filter="genre">Genre</button>
+          <button class="btn btn-filter" data-filter="bpm">BPM</button>
+          <button class="btn btn-filter" data-filter="key">Key</button>
+        </div>
+      </div>
+
       <div id="library-tracks-list"></div>
     </section>
 
@@ -535,6 +556,8 @@
       currentCollectionId: null,
       currentPlaylistId: null,
       currentTab: 'collections',
+      librarySearchQuery: '',
+      librarySearchFilter: 'all',
       wavesurfer: null,
       cropper: null,
       tempCroppedImageBase64: null,
@@ -1109,6 +1132,25 @@
           y0 = null;
         }, { passive: true });
 
+        // Ricerca e Filtri Library
+        const searchInput = document.getElementById('library-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.librarySearchQuery = e.target.value.toLowerCase();
+                this.renderLibrary();
+            });
+        }
+
+        const filterBtns = document.querySelectorAll('.btn-filter');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.librarySearchFilter = e.target.dataset.filter;
+                this.renderLibrary();
+            });
+        });
+
         document.addEventListener('keydown', (e) => {
           const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
           if (tag === 'input' || tag === 'textarea') return;
@@ -1514,12 +1556,40 @@
       renderLibrary() {
         const listEl = document.getElementById('library-tracks-list');
         listEl.innerHTML = '';
+        
         if (this.data.tracks.length === 0) {
           listEl.innerHTML = `<div style="text-align:center; padding:60px 0; color:#8c8c8c; font-size:14px;">Your library is empty.</div>`;
           return;
         }
+
+        // Applica ricerca e filtri
+        let filteredTracks = this.data.tracks;
+        if (this.librarySearchQuery) {
+          filteredTracks = filteredTracks.filter(t => {
+            const q = this.librarySearchQuery;
+            const title = (t.title || '').toLowerCase();
+            const genre = (t.genre || '').toLowerCase();
+            const bpm = (t.bpm || '').toLowerCase();
+            const key = (t.key || '').toLowerCase();
+
+            switch (this.librarySearchFilter) {
+              case 'title': return title.includes(q);
+              case 'genre': return genre.includes(q);
+              case 'bpm': return bpm.includes(q);
+              case 'key': return key.includes(q);
+              default: // 'all'
+                return title.includes(q) || genre.includes(q) || bpm.includes(q) || key.includes(q);
+            }
+          });
+        }
+
+        if (filteredTracks.length === 0) {
+          listEl.innerHTML = `<div style="text-align:center; padding:60px 0; color:#8c8c8c; font-size:14px;">No tracks match your search.</div>`;
+          return;
+        }
+
         const curTrack = this.queue[this.queueIndex];
-        this.data.tracks.forEach(t => {
+        filteredTracks.forEach(t => {
           const isCurrent = curTrack && curTrack.id === t.id;
           listEl.appendChild(this.createTrackElement(t, isCurrent, false));
         });
