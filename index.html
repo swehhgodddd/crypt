@@ -605,6 +605,14 @@
       },
       queue: [],
       queueIndex: -1,
+      unplayedShuffleIndices: [],
+
+      initShufflePool() {
+        // Crea un array con tutti gli indici della coda
+        this.unplayedShuffleIndices = Array.from({length: this.queue.length}, (_, i) => i);
+        // Rimuovi la traccia attuale dal pool per non suonarla due volte di fila
+        this.unplayedShuffleIndices = this.unplayedShuffleIndices.filter(i => i !== this.queueIndex);
+      },
 
       initWaveSurfer() {
         this.wavesurfer = WaveSurfer.create({
@@ -713,19 +721,36 @@
       playQueue(trackList, startTrack) {
         this.queue = trackList;
         this.queueIndex = this.queue.findIndex(t => t.id === startTrack.id);
+        if (this.isShuffle) this.initShufflePool(); // Inizializza il pool se lo shuffle è già attivo
         this.loadTrack(startTrack);
       },
 
       stepTrack(dir) {
         if (!this.queue.length) return;
+        
+        // Modalità Shuffle (solo andando avanti)
         if (dir > 0 && this.isShuffle) {
-          let r = Math.floor(Math.random() * this.queue.length);
-          if (this.queue.length > 1 && r === this.queueIndex) r = (r + 1) % this.queue.length;
-          this.queueIndex = r;
-          this.loadTrack(this.queue[r]);
-          return;
+          if (this.unplayedShuffleIndices.length === 0) {
+            if (this.repeatMode === 'all') {
+               this.initShufflePool(); // Riempi di nuovo il pool
+            } else {
+               // Pool esaurito e repeat disattivato: interrompi la riproduzione
+               this.setPlayIcon();
+               return; 
+            }
+          }
+          
+          if (this.unplayedShuffleIndices.length > 0) {
+            const randIdx = Math.floor(Math.random() * this.unplayedShuffleIndices.length);
+            const nextQIdx = this.unplayedShuffleIndices[randIdx];
+            this.unplayedShuffleIndices.splice(randIdx, 1);
+            this.queueIndex = nextQIdx;
+            this.loadTrack(this.queue[nextQIdx]);
+            return;
+          }
         }
 
+        // Modalità Sequenziale (o PrevTrack)
         let i = this.queueIndex + dir;
         if (i < 0) {
           if (this.repeatMode === 'all') i = this.queue.length - 1;
@@ -747,6 +772,8 @@
             colShuffBtn.style.opacity = this.isShuffle ? '1' : '.55';
             colShuffBtn.style.color = this.isShuffle ? '#fff' : 'inherit';
         }
+        // Se lo attivi in corsa, crea un nuovo pool dalle tracce rimanenti
+        if (this.isShuffle) this.initShufflePool();
       },
 
       toggleRepeat() {
@@ -1566,7 +1593,16 @@
         };
 
         const tracks = pl.trackIds.map(tid => this.data.tracks.find(t => t.id === tid)).filter(Boolean);
-        document.getElementById('btn-play-pl').onclick = () => { if(tracks.length > 0) this.playQueue(tracks, tracks[0]); };
+        document.getElementById('btn-play-pl').onclick = () => { 
+          if(tracks.length > 0) {
+             if (this.isShuffle) {
+                const randTrack = tracks[Math.floor(Math.random() * tracks.length)];
+                this.playQueue(tracks, randTrack);
+             } else {
+                this.playQueue(tracks, tracks[0]);
+             }
+          }
+        };
 
         const listEl = document.getElementById('playlist-tracks-list');
         listEl.innerHTML = '';
@@ -1714,7 +1750,14 @@
 
         document.getElementById('btn-play-col').onclick = () => {
           const tracks = this.data.tracks.filter(t => t.collectionId === id);
-          if (tracks.length > 0) this.playTrack(tracks[0]);
+          if (tracks.length > 0) {
+             if (this.isShuffle) {
+                const randTrack = tracks[Math.floor(Math.random() * tracks.length)];
+                this.playTrack(randTrack);
+             } else {
+                this.playTrack(tracks[0]);
+             }
+          }
         };
         document.getElementById('btn-shuffle-col').onclick = () => this.toggleShuffle();
         document.getElementById('btn-edit-col-head').onclick = () => this.openCollectionModal(col.id);
