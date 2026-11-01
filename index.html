@@ -413,6 +413,16 @@
         <label class="label">Description</label>
         <textarea id="pl-desc-input" class="input-field" rows="2" placeholder="Optional notes..."></textarea>
       </div>
+      <div>
+        <label class="label">Cover image</label>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <div id="pl-cover-preview" style="width:56px; height:56px; background:rgba(255,255,255,.06); border-radius:4px; background-size:cover; background-position:center; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:22px;"></div>
+          <div style="flex:1; min-width:0;">
+            <input type="file" id="pl-cover-file" accept="image/*" class="input-file-native">
+            <button type="button" id="btn-remove-pl-cover" class="btn btn-quiet" style="margin-top:6px; padding-left:0;">Remove cover</button>
+          </div>
+        </div>
+      </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
         <button id="btn-cancel-pl" class="btn" onclick="document.getElementById('modal-playlist').classList.add('hidden')">Cancel</button>
         <button id="btn-save-pl" class="btn btn-white" onclick="app.savePlaylist()">Save</button>
@@ -569,6 +579,10 @@
       librarySearchFilter: 'all',
       wavesurfer: null,
       cropper: null,
+      cropTarget: 'collection',
+      editingPlaylistId: null,
+      tempPlaylistCover: null,
+      removePlaylistCover: false,
       tempCroppedImageBase64: null,
       editingCollectionId: null,
 
@@ -1073,30 +1087,16 @@
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
-        document.getElementById('btn-open-create-playlist').onclick = () => {
-          document.getElementById('pl-title-input').value = '';
-          document.getElementById('pl-desc-input').value = '';
-          document.getElementById('modal-playlist').classList.remove('hidden');
-        };
+        document.getElementById('btn-open-create-playlist').onclick = () => this.openPlaylistModal();
 
-        document.getElementById('col-cover-file').addEventListener('change', async (e) => {
-          const input = e.target;
-          const file = input.files && input.files[0];
-          if (!file) return;
-          if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name)) {
-            alert('Seleziona un file immagine (JPG, PNG, WEBP).');
-            input.value = '';
-            return;
-          }
-          try {
-            const dataUrl = await this.prepareImage(file);
-            this.openCropModal(dataUrl);
-          } catch (err) {
-            console.error('Cover load error:', err);
-            alert('Impossibile leggere questa immagine. Prova con un JPG o PNG.');
-          }
-          input.value = '';
-        });
+        document.getElementById('col-cover-file').addEventListener('change', (e) => this.handleCoverPick(e.target, 'collection'));
+        document.getElementById('pl-cover-file').addEventListener('change', (e) => this.handleCoverPick(e.target, 'playlist'));
+        document.getElementById('btn-remove-pl-cover').onclick = () => {
+          this.tempPlaylistCover = null;
+          this.removePlaylistCover = true;
+          document.getElementById('pl-cover-file').value = '';
+          this.updatePlaylistCoverPreview();
+        };
 
         document.getElementById('btn-rotate-left').onclick = () => this.cropper && this.cropper.rotate(-90);
         document.getElementById('btn-rotate-right').onclick = () => this.cropper && this.cropper.rotate(90);
@@ -1104,8 +1104,15 @@
         document.getElementById('btn-apply-crop').onclick = () => {
           if (this.cropper) {
             const canvas = this.cropper.getCroppedCanvas({ width: 500, height: 500 });
-            this.tempCroppedImageBase64 = canvas.toDataURL('image/jpeg', 0.85);
-            document.getElementById('col-cover-preview').style.backgroundImage = `url('${this.tempCroppedImageBase64}')`;
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            if (this.cropTarget === 'playlist') {
+              this.tempPlaylistCover = dataUrl;
+              this.removePlaylistCover = false;
+              this.updatePlaylistCoverPreview();
+            } else {
+              this.tempCroppedImageBase64 = dataUrl;
+              document.getElementById('col-cover-preview').style.backgroundImage = `url('${dataUrl}')`;
+            }
             this.closeCropModal();
           }
         };
@@ -1295,6 +1302,25 @@
         canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
         if (source.close) source.close();
         return canvas.toDataURL('image/jpeg', 0.9);
+      },
+
+      async handleCoverPick(input, target) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name)) {
+          alert('Seleziona un file immagine (JPG, PNG, WEBP).');
+          input.value = '';
+          return;
+        }
+        try {
+          const dataUrl = await this.prepareImage(file);
+          this.cropTarget = target;
+          this.openCropModal(dataUrl);
+        } catch (err) {
+          console.error('Cover load error:', err);
+          alert('Impossibile leggere questa immagine. Prova con un JPG o PNG.');
+        }
+        input.value = '';
       },
 
       openCropModal(imageSrc) {
@@ -1665,12 +1691,41 @@
         });
       },
 
+      openPlaylistModal(id = null) {
+        const pl = id ? this.data.playlists.find(p => p.id === id) : null;
+        this.editingPlaylistId = pl ? pl.id : null;
+        this.tempPlaylistCover = pl ? (pl.cover || null) : null;
+        this.removePlaylistCover = false;
+        document.getElementById('modal-playlist-title').innerText = pl ? 'Edit playlist' : 'New playlist';
+        document.getElementById('pl-title-input').value = pl ? pl.title : '';
+        document.getElementById('pl-desc-input').value = pl ? (pl.desc || '') : '';
+        document.getElementById('pl-cover-file').value = '';
+        this.updatePlaylistCoverPreview();
+        document.getElementById('modal-playlist').classList.remove('hidden');
+      },
+
+      updatePlaylistCoverPreview() {
+        const preview = document.getElementById('pl-cover-preview');
+        const icon = this.editingPlaylistId === 'pl_preferiti' ? '❤️' : '🎵';
+        preview.style.backgroundImage = this.tempPlaylistCover ? `url("${this.tempPlaylistCover}")` : 'none';
+        preview.textContent = this.tempPlaylistCover ? '' : icon;
+        document.getElementById('btn-remove-pl-cover').style.display = this.tempPlaylistCover ? '' : 'none';
+      },
+
       async savePlaylist() {
         const title = document.getElementById('pl-title-input').value.trim();
         const desc = document.getElementById('pl-desc-input').value.trim();
         if (!title) return alert('Title is required');
 
-        this.data.playlists.push({ id: uid('pl'), title, desc, trackIds: [] });
+        const editing = this.editingPlaylistId ? this.data.playlists.find(p => p.id === this.editingPlaylistId) : null;
+        if (editing) {
+          editing.title = title;
+          editing.desc = desc;
+          if (this.removePlaylistCover) delete editing.cover;
+          else if (this.tempPlaylistCover) editing.cover = this.tempPlaylistCover;
+        } else {
+          this.data.playlists.push({ id: uid('pl'), title, desc, trackIds: [], cover: this.tempPlaylistCover || null });
+        }
         await this.persistData();
         document.getElementById('modal-playlist').classList.add('hidden');
         this.render();
@@ -1687,20 +1742,25 @@
           const card = document.createElement('div');
           card.className = 'card';
           
-          // Icona o cover per le playlist - I preferiti hanno un'icona a cuore
+          // Cover personalizzata, altrimenti icona (i preferiti hanno un'icona a cuore)
           const icona = pl.id === 'pl_preferiti' ? '❤️' : '🎵';
-          
+          const coverStyle = pl.cover
+            ? `background-image:url('${pl.cover}')`
+            : 'background-image:none; display:flex; align-items:center; justify-content:center; font-size:32px;';
+
           card.innerHTML = `
             <div>
-              <div class="card-cover" style="background-image:none; display:flex; align-items:center; justify-content:center; font-size:32px;">${icona}</div>
+              <div class="card-cover" style="${coverStyle}">${pl.cover ? '' : icona}</div>
               <div class="card-title">${esc(pl.title)}</div>
               <div class="card-desc">${esc(pl.desc || 'No description')}</div>
             </div>
             <div class="card-footer">
               <span>${pl.trackIds.length} tracks</span>
+              <span class="btn-edit-pl" style="cursor:pointer; color:#fff;">Edit</span>
             </div>
           `;
-          card.onclick = () => {
+          card.onclick = (e) => {
+            if (e.target.classList.contains('btn-edit-pl')) { e.stopPropagation(); this.openPlaylistModal(pl.id); return; }
             this.currentPlaylistId = pl.id;
             document.getElementById('view-playlists').style.display = 'none';
             document.getElementById('view-playlist-detail').style.display = 'block';
@@ -1717,9 +1777,12 @@
         const headerEl = document.getElementById('playlist-header-detail');
         const isFav = id === 'pl_preferiti';
         const icona = isFav ? '❤️' : '🎵';
-        
+        const coverStyle = pl.cover
+          ? `background-image:url('${pl.cover}')`
+          : 'background-image:none; display:flex; align-items:center; justify-content:center; font-size:48px;';
+
         headerEl.innerHTML = `
-          <div class="detail-cover" style="background-image:none; display:flex; align-items:center; justify-content:center; font-size:48px;">${icona}</div>
+          <div class="detail-cover" style="${coverStyle}">${pl.cover ? '' : icona}</div>
           <div style="flex:1;">
             <div class="detail-title">${esc(pl.title)}</div>
             <div class="detail-desc">${esc(pl.desc || 'No description')}</div>
@@ -1730,7 +1793,11 @@
               <button id="btn-delete-pl" class="btn" style="border-color:#ff4d4d; color:#ff4d4d; display: ${isFav ? 'none' : 'block'};">Delete Playlist</button>
             </div>
           </div>
+          <div style="position: absolute; top: 0; right: 0; display:flex; gap: 8px;">
+            <button id="btn-edit-pl-head" class="btn btn-quiet">Edit</button>
+          </div>
         `;
+        document.getElementById('btn-edit-pl-head').onclick = () => this.openPlaylistModal(pl.id);
 
         if (!isFav) {
           document.getElementById('btn-delete-pl').onclick = async () => {
