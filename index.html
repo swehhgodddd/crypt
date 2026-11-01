@@ -583,6 +583,12 @@
             this.data = savedData;
             if (!this.data.playlists) this.data.playlists = [];
         }
+        
+        // CONTROLLO PLAYLIST PREFERITI (Creazione se mancante)
+        if (!this.data.playlists.find(p => p.id === 'pl_preferiti')) {
+          this.data.playlists.unshift({ id: 'pl_preferiti', title: 'Preferiti', desc: 'I tuoi brani preferiti', trackIds: [] });
+        }
+
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
         try { await this.migrateLegacyAudio(); } catch (err) { console.warn('Audio migration:', err); }
 
@@ -633,9 +639,7 @@
       unplayedShuffleIndices: [],
 
       initShufflePool() {
-        // Crea un array con tutti gli indici della coda
         this.unplayedShuffleIndices = Array.from({length: this.queue.length}, (_, i) => i);
-        // Rimuovi la traccia attuale dal pool per non suonarla due volte di fila
         this.unplayedShuffleIndices = this.unplayedShuffleIndices.filter(i => i !== this.queueIndex);
       },
 
@@ -746,20 +750,18 @@
       playQueue(trackList, startTrack) {
         this.queue = trackList;
         this.queueIndex = this.queue.findIndex(t => t.id === startTrack.id);
-        if (this.isShuffle) this.initShufflePool(); // Inizializza il pool se lo shuffle è già attivo
+        if (this.isShuffle) this.initShufflePool();
         this.loadTrack(startTrack);
       },
 
       stepTrack(dir) {
         if (!this.queue.length) return;
         
-        // Modalità Shuffle (solo andando avanti)
         if (dir > 0 && this.isShuffle) {
           if (this.unplayedShuffleIndices.length === 0) {
             if (this.repeatMode === 'all') {
-               this.initShufflePool(); // Riempi di nuovo il pool
+               this.initShufflePool();
             } else {
-               // Pool esaurito e repeat disattivato: interrompi la riproduzione
                this.setPlayIcon();
                return; 
             }
@@ -775,7 +777,6 @@
           }
         }
 
-        // Modalità Sequenziale (o PrevTrack)
         let i = this.queueIndex + dir;
         if (i < 0) {
           if (this.repeatMode === 'all') i = this.queue.length - 1;
@@ -797,7 +798,6 @@
             colShuffBtn.style.opacity = this.isShuffle ? '1' : '.55';
             colShuffBtn.style.color = this.isShuffle ? '#fff' : 'inherit';
         }
-        // Se lo attivi in corsa, crea un nuovo pool dalle tracce rimanenti
         if (this.isShuffle) this.initShufflePool();
       },
 
@@ -885,7 +885,7 @@
         document.getElementById('modal-add-to-playlist').classList.remove('hidden');
       },
       
-      // NUOVA FUNZIONE: Condivisione Traccia
+      // LOGICA CONDIVISIONE TRACCIA
       async shareTrack(track) {
         try {
           const blob = await localforage.getItem(this.audioKey(track.id));
@@ -897,26 +897,58 @@
           let mimeType = blob.type || 'audio/mpeg';
           if (mimeType.includes('wav')) ext = 'wav';
           
-          const file = new File([blob], `${track.title}.${ext}`, { type: mimeType });
+          const safeTitle = track.title.replace(/[^a-zA-Z0-9_-]/g, '_') || 'track_audio';
+          const fileName = `${safeTitle}.${ext}`;
+          
+          const file = new File([blob], fileName, { type: mimeType });
           
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
-              title: track.title,
-              text: `Ascolta ${track.title} da Crypt.`,
               files: [file]
             });
           } else {
-            // Fallback: scarica il file se la condivisione nativa non è supportata
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${track.title}.${ext}`;
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            throw new Error('Condivisione API non supportata');
           }
         } catch (err) {
-          console.error('Errore durante la condivisione:', err);
-          alert('Condivisione non completata o non supportata dal tuo dispositivo.');
+          if (err.name !== 'AbortError') {
+            console.error('Errore condivisione, avvio download di fallback:', err);
+            const blob = await localforage.getItem(this.audioKey(track.id));
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              let ext = blob.type && blob.type.includes('wav') ? 'wav' : 'mp3';
+              const safeTitle = track.title.replace(/[^a-zA-Z0-9_-]/g, '_') || 'track_audio';
+              a.download = `${safeTitle}.${ext}`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }
+          }
+        }
+      },
+
+      // LOGICA SALVATAGGIO PREFERITI
+      async toggleFavorite(trackId) {
+        let fav = this.data.playlists.find(p => p.id === 'pl_preferiti');
+        if (!fav) {
+          fav = { id: 'pl_preferiti', title: 'Preferiti', desc: 'I tuoi brani preferiti', trackIds: [] };
+          this.data.playlists.unshift(fav);
+        }
+        
+        const idx = fav.trackIds.indexOf(trackId);
+        if (idx >= 0) {
+          fav.trackIds.splice(idx, 1);
+        } else {
+          fav.trackIds.push(trackId);
+        }
+        
+        await this.persistData();
+        
+        // Se siamo dentro la playlist Preferiti, aggiorna la vista istantaneamente
+        if (this.currentPlaylistId === 'pl_preferiti') {
+            this.renderPlaylistDetail('pl_preferiti');
         }
       },
 
@@ -1031,7 +1063,6 @@
         document.getElementById('btn-logo').onclick = () => this.goHome();
         document.getElementById('nav-home').onclick = () => this.goHome();
 
-        // Modali
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
@@ -1137,7 +1168,6 @@
           if(this.menuTrack) this.showInfo(this.menuTrack);
         };
         
-        // CLICK HANDLER PER CONDIVISIONE TRACCIA
         document.getElementById('tm-share').onclick = () => {
           document.getElementById('modal-track-menu').classList.add('hidden');
           if (this.menuTrack) this.shareTrack(this.menuTrack);
@@ -1156,7 +1186,6 @@
         };
         document.getElementById('info-close').onclick = () => document.getElementById('modal-info').classList.add('hidden');
 
-        // Click Fuori dai Modali
         const modals = ['modal-info', 'modal-queue', 'modal-player-menu', 'modal-track-menu', 'modal-add-to-playlist'];
         modals.forEach(m => {
           const el = document.getElementById(m);
@@ -1176,7 +1205,6 @@
           y0 = null;
         }, { passive: true });
 
-        // Ricerca e Filtri Library
         const searchInput = document.getElementById('library-search-input');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
@@ -1460,8 +1488,6 @@
               break;
             }
             const finalTitle = (files.length === 1 && title) ? title : file.name.replace(/\.[^/.]+$/, "");
-            // Se l'upload parte dalla Library, currentCollectionId è null:
-            // la traccia resta nella Library senza appartenere a una collection.
             this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits, cover: this.tempTrackCover || null });
           }
         }
@@ -1542,7 +1568,6 @@
         await localforage.removeItem('peaks_' + id);
         this.data.tracks = this.data.tracks.filter(t => t.id !== id);
         
-        // Rimuovi anche dalle playlist
         this.data.playlists.forEach(pl => {
           pl.trackIds = pl.trackIds.filter(tid => tid !== id);
         });
@@ -1606,7 +1631,6 @@
           return;
         }
 
-        // Applica ricerca e filtri
         let filteredTracks = this.data.tracks;
         if (this.librarySearchQuery) {
           filteredTracks = filteredTracks.filter(t => {
@@ -1621,7 +1645,7 @@
               case 'genre': return genre.includes(q);
               case 'bpm': return bpm.includes(q);
               case 'key': return key.includes(q);
-              default: // 'all'
+              default:
                 return title.includes(q) || genre.includes(q) || bpm.includes(q) || key.includes(q);
             }
           });
@@ -1660,9 +1684,13 @@
         this.data.playlists.forEach(pl => {
           const card = document.createElement('div');
           card.className = 'card';
+          
+          // Icona o cover per le playlist - I preferiti hanno un'icona a cuore
+          const icona = pl.id === 'pl_preferiti' ? '❤️' : '🎵';
+          
           card.innerHTML = `
             <div>
-              <div class="card-cover" style="background-image:none; display:flex; align-items:center; justify-content:center; font-size:32px;">🎵</div>
+              <div class="card-cover" style="background-image:none; display:flex; align-items:center; justify-content:center; font-size:32px;">${icona}</div>
               <div class="card-title">${esc(pl.title)}</div>
               <div class="card-desc">${esc(pl.desc || 'No description')}</div>
             </div>
@@ -1685,8 +1713,11 @@
         if (!pl) return this.switchTab('playlists');
 
         const headerEl = document.getElementById('playlist-header-detail');
+        const isFav = id === 'pl_preferiti';
+        const icona = isFav ? '❤️' : '🎵';
+        
         headerEl.innerHTML = `
-          <div class="detail-cover" style="background-image:none; display:flex; align-items:center; justify-content:center; font-size:48px;">🎵</div>
+          <div class="detail-cover" style="background-image:none; display:flex; align-items:center; justify-content:center; font-size:48px;">${icona}</div>
           <div style="flex:1;">
             <div class="detail-title">${esc(pl.title)}</div>
             <div class="detail-desc">${esc(pl.desc || 'No description')}</div>
@@ -1694,17 +1725,19 @@
               <button id="btn-play-pl" class="btn btn-white" style="width: 48px; height: 48px; border-radius: 50%; padding: 0; display:flex; align-items:center; justify-content:center;">
                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
               </button>
-              <button id="btn-delete-pl" class="btn" style="border-color:#ff4d4d; color:#ff4d4d;">Delete Playlist</button>
+              <button id="btn-delete-pl" class="btn" style="border-color:#ff4d4d; color:#ff4d4d; display: ${isFav ? 'none' : 'block'};">Delete Playlist</button>
             </div>
           </div>
         `;
 
-        document.getElementById('btn-delete-pl').onclick = async () => {
-          if (!confirm("Delete this playlist? (Tracks won't be deleted from Library)")) return;
-          this.data.playlists = this.data.playlists.filter(p => p.id !== pl.id);
-          await this.persistData();
-          this.switchTab('playlists');
-        };
+        if (!isFav) {
+          document.getElementById('btn-delete-pl').onclick = async () => {
+            if (!confirm("Delete this playlist? (Tracks won't be deleted from Library)")) return;
+            this.data.playlists = this.data.playlists.filter(p => p.id !== pl.id);
+            await this.persistData();
+            this.switchTab('playlists');
+          };
+        }
 
         const tracks = pl.trackIds.map(tid => this.data.tracks.find(t => t.id === tid)).filter(Boolean);
         document.getElementById('btn-play-pl').onclick = () => { 
@@ -1731,6 +1764,15 @@
 
       createTrackElement(t, isCurrent, isPlaylistView, playlistId = null, index = 0) {
         const isMatch = !isCurrent && this.queue[this.queueIndex] && this.isHarmonicMatch(this.queue[this.queueIndex], t);
+        
+        // Controllo se è tra i preferiti
+        const favPlaylist = this.data.playlists.find(p => p.id === 'pl_preferiti');
+        const isFav = favPlaylist && favPlaylist.trackIds.includes(t.id);
+        const heartFill = isFav ? '#ff4d4d' : 'none';
+        const heartStroke = isFav ? '#ff4d4d' : 'currentColor';
+        const heartColor = isFav ? '#ff4d4d' : 'inherit';
+        const heartOpacity = isFav ? '1' : '.7';
+
         const item = document.createElement('div');
         item.className = 'track-row' + (isCurrent ? ' is-active' : '');
         
@@ -1756,6 +1798,14 @@
             <span class="tag" style="margin-right:8px;">${esc(t.bpm)} BPM</span>
             <span class="tag" style="margin-right:8px;">${esc(t.key)}</span>
             ${isPlaylistView ? `<button class="btn-quiet" style="font-size:12px; color:#ff4d4d; margin-right:8px;" onclick="app.removeFromPlaylist('${playlistId}', ${index})">Remove</button>` : ''}
+            
+            <!-- TASTO PREFERITI (CUORE) -->
+            <button class="btn-ctrl btn-fav-track" style="color: ${heartColor}; opacity: ${heartOpacity};" title="Toggle Favorite">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="${heartFill}" stroke="${heartStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+            </button>
+
             <button class="btn-ctrl btn-more-track" style="opacity:.7;"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg></button>
           </div>
         `;
@@ -1772,6 +1822,26 @@
             this.playTrack(t);
           }
         };
+
+        // HANDLER CLICK SUL CUORE
+        const favBtn = item.querySelector('.btn-fav-track');
+        favBtn.onclick = async (e) => {
+          e.stopPropagation();
+          await this.toggleFavorite(t.id);
+          
+          // Se non siamo all'interno della playlist "Preferiti" dove la riga scomparirebbe, aggiorniamo il cuore visivamente
+          if (this.currentPlaylistId !== 'pl_preferiti') {
+            const isNowFav = this.data.playlists.find(p => p.id === 'pl_preferiti').trackIds.includes(t.id);
+            favBtn.style.color = isNowFav ? '#ff4d4d' : 'inherit';
+            favBtn.style.opacity = isNowFav ? '1' : '.7';
+            favBtn.innerHTML = `
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="${isNowFav ? '#ff4d4d' : 'none'}" stroke="${isNowFav ? '#ff4d4d' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+            `;
+          }
+        };
+
         item.querySelector('.btn-more-track').onclick = () => this.openTrackMenu(t);
         return item;
       },
