@@ -264,7 +264,6 @@
         <div class="filter-group">
           <button class="btn btn-filter active" data-filter="all">All</button>
           <button class="btn btn-filter" data-filter="title">Title</button>
-          <button class="btn btn-filter" data-filter="genre">Genre</button>
           <button class="btn btn-filter" data-filter="bpm">BPM</button>
           <button class="btn btn-filter" data-filter="key">Key</button>
         </div>
@@ -514,7 +513,7 @@
         <label class="label">Title</label>
         <input type="text" id="track-title-input" class="input-field" placeholder="Track Title">
       </div>
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
         <div>
           <label class="label">BPM</label>
           <input type="text" id="track-bpm-input" placeholder="140" class="input-field">
@@ -522,10 +521,6 @@
         <div>
           <label class="label">Key</label>
           <input type="text" id="track-key-input" placeholder="C min" class="input-field">
-        </div>
-        <div>
-          <label class="label">Genre</label>
-          <input type="text" id="track-genre-input" placeholder="Trap" class="input-field">
         </div>
       </div>
       <div>
@@ -547,6 +542,18 @@
     function uid(prefix) {
       const r = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now() + '_' + Math.random().toString(36).slice(2, 10);
       return prefix + '_' + r;
+    }
+
+    // Valore di un metadato: stringa vuota se non specificato (null, vuoto o '---' salvato in precedenza)
+    function metaVal(v) {
+      v = v == null ? '' : String(v).trim();
+      return v && v !== '---' ? v : '';
+    }
+
+    // Parti mostrabili sotto il titolo: solo BPM e key realmente specificati
+    function metaParts(t) {
+      const bpm = metaVal(t && t.bpm), key = metaVal(t && t.key);
+      return [bpm && `${bpm} BPM`, key].filter(Boolean);
     }
 
     function esc(v) {
@@ -985,7 +992,7 @@
               </span>
               <div class="queue-track-info">
                 <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(t.title)}</div>
-                <div style="font-size:11px; color:var(--mute);">${esc(t.bpm)} BPM | ${esc(t.key)}</div>
+                ${metaParts(t).length ? `<div style="font-size:11px; color:var(--mute);">${esc(metaParts(t).join(' | '))}</div>` : ''}
               </div>
               ${idx === this.queueIndex ? '<span style="font-size:10px; font-weight:700; flex-shrink:0;">PLAYING</span>' : ''}
             `;
@@ -1430,7 +1437,6 @@
         document.getElementById('track-title-input').value = t ? t.title : '';
         document.getElementById('track-bpm-input').value = t ? clean(t.bpm) : '';
         document.getElementById('track-key-input').value = t ? clean(t.key) : '';
-        document.getElementById('track-genre-input').value = t ? clean(t.genre) : '';
         document.getElementById('track-desc-input').value = t ? (t.description || '') : '';
         document.getElementById('track-credits-input').value = t ? this.creditsToText(t.credits) : '';
         document.getElementById('track-audio-file').value = '';
@@ -1452,7 +1458,6 @@
         const title = document.getElementById('track-title-input').value.trim();
         const bpm = document.getElementById('track-bpm-input').value.trim();
         const key = document.getElementById('track-key-input').value.trim();
-        const genre = document.getElementById('track-genre-input').value.trim();
         const description = document.getElementById('track-desc-input').value.trim();
         const credits = this.parseCredits(document.getElementById('track-credits-input').value);
 
@@ -1471,7 +1476,7 @@
               return alert('Not enough storage space to save this track.');
             }
           }
-          Object.assign(editing, { title: title || editing.title, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits });
+          Object.assign(editing, { title: title || editing.title, bpm: bpm || '---', key: key || '---', description, credits });
           if (this.removeTrackCover) delete editing.cover;
           else if (this.tempTrackCover) editing.cover = this.tempTrackCover;
           const cur = this.queue[this.queueIndex];
@@ -1488,7 +1493,7 @@
               break;
             }
             const finalTitle = (files.length === 1 && title) ? title : file.name.replace(/\.[^/.]+$/, "");
-            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', genre: genre || '---', description, credits, cover: this.tempTrackCover || null });
+            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', description, credits, cover: this.tempTrackCover || null });
           }
         }
 
@@ -1513,7 +1518,7 @@
 
       updatePlayerMeta(t) {
         this.updateMediaSession(t);
-        const sub = [t.bpm && t.bpm !== '---' && `${t.bpm} BPM`, t.key !== '---' && t.key, t.genre !== '---' && t.genre].filter(Boolean).join(', ') || '--';
+        const sub = metaParts(t).join(', ');
         document.getElementById('player-title').innerText = t.title;
         document.getElementById('player-sub').innerText = sub;
         document.getElementById('full-title').innerText = t.title;
@@ -1521,9 +1526,8 @@
       },
 
       showInfo(t) {
-        const clean = v => (v && v !== '---') ? v : null;
         document.getElementById('info-title').innerText = t.title;
-        document.getElementById('info-sub').innerText = [clean(t.bpm) && `${t.bpm} BPM`, clean(t.key), clean(t.genre)].filter(Boolean).join(', ');
+        document.getElementById('info-sub').innerText = metaParts(t).join(', ');
         const body = document.getElementById('info-body');
         body.innerHTML = '';
         const section = (label) => {
@@ -1583,7 +1587,7 @@
       async loadTrack(track) {
         document.getElementById('global-player').classList.remove('hidden');
         document.getElementById('player-title').innerText = track.title;
-        document.getElementById('player-sub').innerText = [track.bpm && `${track.bpm} BPM`, track.key, track.genre].filter(Boolean).join(', ') || '--';
+        document.getElementById('player-sub').innerText = metaParts(track).join(', ');
         document.getElementById('player-time').innerText = '0:00';
         document.getElementById('player-duration').innerText = '0:00';
         document.getElementById('full-time').innerText = '0:00';
@@ -1636,17 +1640,15 @@
           filteredTracks = filteredTracks.filter(t => {
             const q = this.librarySearchQuery;
             const title = (t.title || '').toLowerCase();
-            const genre = (t.genre || '').toLowerCase();
-            const bpm = (t.bpm || '').toLowerCase();
-            const key = (t.key || '').toLowerCase();
+            const bpm = metaVal(t.bpm).toLowerCase();
+            const key = metaVal(t.key).toLowerCase();
 
             switch (this.librarySearchFilter) {
               case 'title': return title.includes(q);
-              case 'genre': return genre.includes(q);
               case 'bpm': return bpm.includes(q);
               case 'key': return key.includes(q);
               default:
-                return title.includes(q) || genre.includes(q) || bpm.includes(q) || key.includes(q);
+                return title.includes(q) || bpm.includes(q) || key.includes(q);
             }
           });
         }
@@ -1790,13 +1792,12 @@
             <button class="btn-play btn-play-track">${isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}</button>
             <div>
               <div style="font-size:14px; font-weight:600;">${esc(t.title)}</div>
-              <div style="font-size:12px; color:#8c8c8c;">${esc(t.genre)}</div>
             </div>
           </div>
           <div style="display:flex; align-items:center; gap:4px;">
             ${isMatch ? '<span class="tag tag-match" style="margin-right:4px;">⚡ Match</span>' : ''}
-            <span class="tag" style="margin-right:8px;">${esc(t.bpm)} BPM</span>
-            <span class="tag" style="margin-right:8px;">${esc(t.key)}</span>
+            ${metaVal(t.bpm) ? `<span class="tag" style="margin-right:8px;">${esc(metaVal(t.bpm))} BPM</span>` : ''}
+            ${metaVal(t.key) ? `<span class="tag" style="margin-right:8px;">${esc(metaVal(t.key))}</span>` : ''}
             ${isPlaylistView ? `<button class="btn-quiet" style="font-size:12px; color:#ff4d4d; margin-right:8px;" onclick="app.removeFromPlaylist('${playlistId}', ${index})">Remove</button>` : ''}
             
             <!-- TASTO PREFERITI (CUORE) -->
