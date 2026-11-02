@@ -101,6 +101,18 @@
 
     .right-controls { display: flex; gap: 4px; align-items: center; }
 
+    /* Volume: solo player desktop (mouse + finestra larga) */
+    .vol-wrap { display: none; align-items: center; gap: 2px; margin-right: 6px; }
+    @media (hover: hover) and (pointer: fine) and (min-width: 900px) { .vol-wrap { display: flex; } }
+    .vol-slider { -webkit-appearance: none; appearance: none; width: 84px; height: 16px; margin: 0; background: transparent; cursor: pointer; opacity: .7; transition: opacity .15s; --v: 100%; }
+    .vol-slider:hover, .vol-slider:focus-visible { opacity: 1; }
+    .vol-slider:focus-visible { outline: 1px solid rgba(255,255,255,.55); outline-offset: 3px; border-radius: 4px; }
+    .vol-slider::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: linear-gradient(to right, #fff var(--v), rgba(255,255,255,.22) var(--v)); }
+    .vol-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 10px; height: 10px; margin-top: -3.5px; border-radius: 50%; background: #fff; border: none; }
+    .vol-slider::-moz-range-track { height: 3px; border-radius: 2px; background: rgba(255,255,255,.22); }
+    .vol-slider::-moz-range-progress { height: 3px; border-radius: 2px; background: #fff; }
+    .vol-slider::-moz-range-thumb { width: 10px; height: 10px; border: none; border-radius: 50%; background: #fff; }
+
     /* Bottom Nav */
     .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.92); border-top: 1px solid var(--line); display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
     .bottom-nav-btn { flex: 1; background: none; border: none; color: var(--mute); padding: 16px 0; font-size: 13px; font-weight: 600; cursor: pointer; transition: color .15s; }
@@ -129,6 +141,40 @@
     .storage-info { margin-top: 56px; font-size: 12px; color: var(--mute); }
     .btn-quiet { border-color: transparent; color: var(--mute); padding: 6px 8px; }
     .btn-quiet:hover { border-color: transparent; color: #fff; }
+    .sort-select { appearance: none; -webkit-appearance: none; padding-right: 30px; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23bdbdbd' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 12px center; max-width: 160px; }
+    .sort-select option { background: #000; color: #fff; }
+
+    /* Cover ingrandibile + effetto olografico */
+    .detail-cover.is-zoomable { cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
+    .detail-cover.is-zoomable:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    .holo-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .holo-stage { width: min(94vw, 76vh, 720px); aspect-ratio: 1; perspective: 900px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; animation: holoIn .28s cubic-bezier(.2,.8,.2,1); }
+    .holo { --mx: 50%; --my: 50%; --rx: 0deg; --ry: 0deg; --o: 0; position: relative; width: 100%; height: 100%; border-radius: 6px; overflow: hidden; isolation: isolate; transform: rotateX(var(--rx)) rotateY(var(--ry)); box-shadow: 0 0 0 1px rgba(255,255,255,.12); will-change: transform; }
+    @supports (height: 1dvh) { .holo-stage { width: min(94vw, 74dvh, 720px); } }
+    .holo > div { position: absolute; inset: 0; pointer-events: none; }
+    .holo-img { background-size: cover; background-position: center; background-color: var(--soft); }
+    .holo-foil { background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px),
+        repeating-linear-gradient(115deg, #f08ab8 0%, #efdc8f 9%, #8fefc6 18%, #8fc9ef 27%, #b88fef 36%, #f08ab8 45%);
+      background-size: 100% 100%, 260% 260%; background-position: 0 0, var(--mx) var(--my);
+      mix-blend-mode: color-dodge; opacity: calc(var(--o) * .2); filter: saturate(.75) brightness(.85); }
+    .holo-glare { background: radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,.4) 0%, rgba(255,255,255,0) 58%); mix-blend-mode: overlay; opacity: calc(var(--o) * .8); }
+    .holo-img.swap { animation: holoSwap .22s ease-out; }
+    @keyframes holoSwap { from { opacity: 0; } to { opacity: 1; } }
+    .holo-nav { display: flex; align-items: center; gap: 4px; }
+    .holo-nav.hidden { display: none; }
+    #holo-dots { display: flex; align-items: center; }
+    .holo-dot { width: 22px; height: 22px; padding: 0; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .holo-dot::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.3); transition: background .15s, transform .15s; }
+    .holo-dot.on::before { background: #fff; transform: scale(1.25); }
+    .holo-dot:focus-visible { outline: 2px solid #fff; border-radius: 50%; }
+    .alt-covers { display: flex; flex-wrap: wrap; gap: 10px; }
+    .alt-cover { position: relative; width: 56px; height: 56px; border-radius: 4px; background-color: var(--soft); background-size: cover; background-position: center; }
+    .alt-cover button { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; padding: 0; border-radius: 50%; background: #000; border: 1px solid var(--line-hi); color: #fff; font-size: 10px; line-height: 1; cursor: pointer; }
+    .alt-add { width: 56px; height: 56px; border-radius: 4px; border: 1px dashed var(--line-hi); background: none; color: var(--mute); font-size: 22px; cursor: pointer; }
+    .alt-add:hover { color: #fff; }
+    @keyframes holoIn { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .holo-stage, .holo-img.swap { animation: none; } }
     textarea.input-field { resize: vertical; min-height: 76px; line-height: 1.4; }
 
     /* Info, Menus e Queue */
@@ -221,9 +267,21 @@
     <section id="view-collection-detail" style="display:none;">
       <div id="collection-header-detail" class="detail-head"></div>
       
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:12px; flex-wrap:wrap;">
         <div class="section-title">Tracks</div>
-        <button id="btn-open-add-track" class="btn btn-white">Add track</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <select id="col-sort-select" class="btn sort-select" aria-label="Sort tracks">
+            <option value="added">Added order</option>
+            <option value="newest">Newest first</option>
+            <option value="number">Track number</option>
+            <option value="title-asc">Title A–Z</option>
+            <option value="title-desc">Title Z–A</option>
+            <option value="bpm-asc">BPM low–high</option>
+            <option value="bpm-desc">BPM high–low</option>
+            <option value="key">Key</option>
+          </select>
+          <button id="btn-open-add-track" class="btn btn-white">Add track</button>
+        </div>
       </div>
       <div id="tracks-list"></div>
     </section>
@@ -304,6 +362,17 @@
         
         <!-- Controlli Destri (Coda + Opzioni 3 punti) -->
         <div class="right-controls">
+          <div class="vol-wrap">
+            <button id="btn-mute" class="btn-ctrl" aria-label="Mute" title="Mute (M)">
+              <svg id="vol-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+                <path class="vi-low" d="M15.5 8.5a5 5 0 010 7"/>
+                <path class="vi-high" d="M18.5 5.5a9 9 0 010 13"/>
+                <path class="vi-mute" d="M16 9l6 6M22 9l-6 6"/>
+              </svg>
+            </button>
+            <input id="volume-slider" class="vol-slider" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
+          </div>
           <button id="btn-queue" class="btn-ctrl" title="Queue">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
           </button>
@@ -384,6 +453,7 @@
         <!-- AGGIUNTO IL TASTO SHARE -->
         <div class="menu-row" id="tm-share">Share Track</div>
         <div class="menu-row" id="tm-add-playlist">Add to Playlist</div>
+        <div class="menu-row" id="tm-remove-playlist" style="display:none;">Remove from Playlist</div>
         <div class="menu-row" id="tm-edit">Edit Track</div>
         <div class="menu-row" id="tm-delete" style="color: #ff4d4d;">Delete Track</div>
       </div>
@@ -416,9 +486,9 @@
       <div>
         <label class="label">Cover image</label>
         <div style="display:flex; gap:12px; align-items:center;">
-          <div id="pl-cover-preview" style="width:56px; height:56px; background:rgba(255,255,255,.06); border-radius:4px; background-size:cover; background-position:center; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:22px;"></div>
+          <div id="pl-cover-preview" title="Change cover" style="cursor:pointer; width:56px; height:56px; background:rgba(255,255,255,.06); border-radius:4px; background-size:cover; background-position:center; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:22px;"></div>
           <div style="flex:1; min-width:0;">
-            <input type="file" id="pl-cover-file" accept="image/*" class="input-file-native">
+            <input type="file" id="pl-cover-file" class="input-file-native">
             <button type="button" id="btn-remove-pl-cover" class="btn btn-quiet" style="margin-top:6px; padding-left:0;">Remove cover</button>
           </div>
         </div>
@@ -445,13 +515,37 @@
       <div>
         <label class="label">Cover image</label>
         <div style="display:flex; gap:12px; align-items:center;">
-          <div id="col-cover-preview" style="width:56px; height:56px; background:rgba(255,255,255,.06); border-radius:4px; background-size:cover; background-position:center; flex-shrink:0;"></div>
+          <div id="col-cover-preview" title="Change cover" style="cursor:pointer; width:56px; height:56px; background:rgba(255,255,255,.06); border-radius:4px; background-size:cover; background-position:center; flex-shrink:0;"></div>
           <input type="file" id="col-cover-file" class="input-file-native">
         </div>
+      </div>
+      <div>
+        <label class="label">More cover versions (shown when the cover is enlarged)</label>
+        <div id="col-alt-covers" class="alt-covers"></div>
+        <input type="file" id="col-alt-file" accept="image/*" style="display:none">
       </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
         <button id="btn-cancel-col" class="btn">Cancel</button>
         <button id="btn-save-col" class="btn btn-white">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISUALIZZATORE COVER (ingrandimento con effetto holo) -->
+  <div id="modal-cover" class="modal-overlay hidden" style="z-index:150;">
+    <button id="cover-close" class="btn-ctrl" aria-label="Close" style="position:absolute; top:max(12px, env(safe-area-inset-top, 0px)); right:12px; width:40px; height:40px; opacity:.8;">✕</button>
+    <div class="holo-wrap">
+      <div id="holo-stage" class="holo-stage">
+        <div id="holo-card" class="holo">
+          <div id="holo-img" class="holo-img"></div>
+          <div class="holo-foil"></div>
+          <div class="holo-glare"></div>
+        </div>
+      </div>
+      <div id="holo-nav" class="holo-nav hidden">
+        <button id="cover-prev" type="button" class="btn-ctrl" aria-label="Previous cover"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div id="holo-dots"></div>
+        <button id="cover-next" type="button" class="btn-ctrl" aria-label="Next cover"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
       </div>
     </div>
   </div>
@@ -584,6 +678,9 @@
       tempPlaylistCover: null,
       removePlaylistCover: false,
       tempCroppedImageBase64: null,
+      tempCollectionCovers: [],
+      coverList: [],
+      coverIndex: 0,
       editingCollectionId: null,
 
       // State controlli
@@ -596,6 +693,7 @@
       isLoopActive: false,
       
       menuTrack: null, 
+      menuPlaylistCtx: null,
 
       async init() {
         localforage.config({ name: 'CRYPT_STORAGE', storeName: 'crypt_data' });
@@ -877,9 +975,11 @@
         document.getElementById('modal-player-menu').classList.remove('hidden');
       },
 
-      openTrackMenu(track) {
+      openTrackMenu(track, plCtx = null) {
         this.menuTrack = track;
+        this.menuPlaylistCtx = plCtx;
         document.getElementById('tm-title').innerText = track.title;
+        document.getElementById('tm-remove-playlist').style.display = plCtx ? '' : 'none';
         document.getElementById('modal-track-menu').classList.remove('hidden');
       },
 
@@ -1089,7 +1189,10 @@
 
         document.getElementById('btn-open-create-playlist').onclick = () => this.openPlaylistModal();
 
+        document.getElementById('col-cover-preview').onclick = () => document.getElementById('col-cover-file').click();
+        document.getElementById('pl-cover-preview').onclick = () => document.getElementById('pl-cover-file').click();
         document.getElementById('col-cover-file').addEventListener('change', (e) => this.handleCoverPick(e.target, 'collection'));
+        document.getElementById('col-alt-file').addEventListener('change', (e) => this.handleCoverPick(e.target, 'collection-alt'));
         document.getElementById('pl-cover-file').addEventListener('change', (e) => this.handleCoverPick(e.target, 'playlist'));
         document.getElementById('btn-remove-pl-cover').onclick = () => {
           this.tempPlaylistCover = null;
@@ -1103,12 +1206,15 @@
         document.getElementById('btn-cancel-crop').onclick = () => this.closeCropModal();
         document.getElementById('btn-apply-crop').onclick = () => {
           if (this.cropper) {
-            const canvas = this.cropper.getCroppedCanvas({ width: 500, height: 500 });
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const canvas = this.cropper.getCroppedCanvas({ width: 900, height: 900, imageSmoothingQuality: 'high' });
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.84);
             if (this.cropTarget === 'playlist') {
               this.tempPlaylistCover = dataUrl;
               this.removePlaylistCover = false;
               this.updatePlaylistCoverPreview();
+            } else if (this.cropTarget === 'collection-alt') {
+              this.tempCollectionCovers.push(dataUrl);
+              this.renderAltCovers();
             } else {
               this.tempCroppedImageBase64 = dataUrl;
               document.getElementById('col-cover-preview').style.backgroundImage = `url('${dataUrl}')`;
@@ -1189,6 +1295,11 @@
         
         document.getElementById('tm-add-playlist').onclick = () => {
           if (this.menuTrack) this.openAddToPlaylistModal(this.menuTrack);
+        };
+        document.getElementById('tm-remove-playlist').onclick = () => {
+          document.getElementById('modal-track-menu').classList.add('hidden');
+          const ctx = this.menuPlaylistCtx;
+          if (ctx) this.removeFromPlaylist(ctx.playlistId, ctx.index);
         };
         document.getElementById('tm-edit').onclick = () => {
           document.getElementById('modal-track-menu').classList.add('hidden');
@@ -1277,6 +1388,9 @@
         document.getElementById('btn-export').onclick = () => this.exportBackup();
         document.getElementById('btn-import-trigger').onclick = () => document.getElementById('import-file-input').click();
         document.getElementById('import-file-input').onchange = (e) => this.importBackup(e);
+
+        this.initCoverViewer();
+        this.initVolume();
       },
 
       async prepareImage(file) {
@@ -1382,6 +1496,7 @@
       openCollectionModal(id = null) {
         this.editingCollectionId = id;
         this.tempCroppedImageBase64 = null;
+        this.tempCollectionCovers = [];
         const modal = document.getElementById('modal-collection');
         const titleEl = document.getElementById('modal-collection-title');
         
@@ -1392,13 +1507,34 @@
           document.getElementById('col-desc-input').value = col.desc || '';
           document.getElementById('col-cover-preview').style.backgroundImage = col.cover ? `url('${col.cover}')` : 'none';
           this.tempCroppedImageBase64 = col.cover;
+          this.tempCollectionCovers = [...(col.covers || [])];
         } else {
           titleEl.innerText = 'New collection';
           document.getElementById('col-title-input').value = '';
           document.getElementById('col-desc-input').value = '';
           document.getElementById('col-cover-preview').style.backgroundImage = 'none';
         }
+        this.renderAltCovers();
         modal.classList.remove('hidden');
+      },
+
+      renderAltCovers() {
+        const box = document.getElementById('col-alt-covers');
+        box.innerHTML = '';
+        this.tempCollectionCovers.forEach((src, i) => {
+          const d = document.createElement('div');
+          d.className = 'alt-cover';
+          d.style.backgroundImage = `url("${src}")`;
+          const x = document.createElement('button');
+          x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Remove this version');
+          x.onclick = () => { this.tempCollectionCovers.splice(i, 1); this.renderAltCovers(); };
+          d.appendChild(x);
+          box.appendChild(d);
+        });
+        const add = document.createElement('button');
+        add.type = 'button'; add.className = 'alt-add'; add.textContent = '+'; add.setAttribute('aria-label', 'Add a cover version');
+        add.onclick = () => document.getElementById('col-alt-file').click();
+        box.appendChild(add);
       },
 
       closeCollectionModal() {
@@ -1416,11 +1552,13 @@
           col.title = title;
           col.desc = desc;
           if (this.tempCroppedImageBase64) col.cover = this.tempCroppedImageBase64;
+          col.covers = [...this.tempCollectionCovers];
         } else {
           this.data.collections.push({
             id: uid('col'),
             title, desc,
-            cover: this.tempCroppedImageBase64 || null
+            cover: this.tempCroppedImageBase64 || null,
+            covers: [...this.tempCollectionCovers]
           });
         }
 
@@ -1607,7 +1745,216 @@
       },
 
       playTrack(track) {
-        this.playQueue(this.data.tracks.filter(t => t.collectionId === track.collectionId), track);
+        this.playQueue(this.getCollectionTracks(track.collectionId), track);
+      },
+
+      // Tracce di una collection nell'ordine scelto (lo stesso usato per la lista e per la coda del player)
+      getCollectionTracks(colId) {
+        const list = this.data.tracks.filter(t => t.collectionId === colId);
+        const col = this.data.collections.find(c => c.id === colId);
+        return this.sortTracks(list, col && col.sort);
+      },
+
+      sortTracks(list, mode) {
+        const nat = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
+        // i valori mancanti vanno sempre in fondo, in qualsiasi direzione
+        const withMissingLast = (valFn, cmp) => (a, b) => {
+          const va = valFn(a), vb = valFn(b);
+          const ma = va === null, mb = vb === null;
+          if (ma && mb) return nat(a.title, b.title);
+          if (ma) return 1;
+          if (mb) return -1;
+          return cmp(va, vb) || nat(a.title, b.title);
+        };
+        const leadingNum = t => { const m = /^\s*(\d+)/.exec(t.title || ''); return m ? parseInt(m[1], 10) : null; };
+        const bpmNum = t => { const n = parseFloat(metaVal(t.bpm)); return isNaN(n) ? null : n; };
+        const keyVal = t => metaVal(t.key) || null;
+
+        const out = list.slice();
+        switch (mode) {
+          case 'newest':     return out.reverse();
+          case 'number':     return out.sort(withMissingLast(leadingNum, (a, b) => a - b));
+          case 'title-asc':  return out.sort((a, b) => nat(a.title, b.title));
+          case 'title-desc': return out.sort((a, b) => nat(b.title, a.title));
+          case 'bpm-asc':    return out.sort(withMissingLast(bpmNum, (a, b) => a - b));
+          case 'bpm-desc':   return out.sort(withMissingLast(bpmNum, (a, b) => b - a));
+          case 'key':        return out.sort(withMissingLast(keyVal, nat));
+          default:           return out; // 'added': ordine di caricamento
+        }
+      },
+
+      // ---- Volume (barra visibile solo nel player desktop) ----
+      initVolume() {
+        const slider = document.getElementById('volume-slider');
+        const muteBtn = document.getElementById('btn-mute');
+        if (!slider || !muteBtn || !this.wavesurfer) return;
+
+        let saved = 1;
+        try {
+          const v = parseFloat(localStorage.getItem('crypt_volume'));
+          if (!isNaN(v)) saved = Math.min(1, Math.max(0, v));
+        } catch (_) {}
+        this.lastVolume = saved > 0 ? saved : 0.8;
+        this.wavesurfer.setVolume(saved);
+
+        slider.addEventListener('input', () => {
+          const v = slider.value / 100;
+          if (v > 0) this.lastVolume = v;
+          if (this.wavesurfer.getMuted() && v > 0) this.wavesurfer.setMuted(false);
+          this.wavesurfer.setVolume(v);
+          try { localStorage.setItem('crypt_volume', String(v)); } catch (_) {}
+          this.syncVolumeUI();
+        });
+        // dopo il click il focus non deve restare sulla barra, altrimenti Spazio/M non comandano più il player
+        slider.addEventListener('pointerup', () => slider.blur());
+
+        muteBtn.onclick = () => {
+          const muted = this.wavesurfer.getMuted();
+          if (muted || this.wavesurfer.getVolume() === 0) {
+            this.wavesurfer.setMuted(false);
+            if (this.wavesurfer.getVolume() === 0) this.wavesurfer.setVolume(this.lastVolume);
+          } else {
+            this.wavesurfer.setMuted(true);
+          }
+          this.syncVolumeUI();
+        };
+
+        // tiene la barra allineata anche quando il volume cambia da altrove (es. tasto M)
+        const media = this.wavesurfer.getMediaElement && this.wavesurfer.getMediaElement();
+        if (media && media.addEventListener) media.addEventListener('volumechange', () => this.syncVolumeUI());
+        this.syncVolumeUI();
+      },
+
+      syncVolumeUI() {
+        const slider = document.getElementById('volume-slider');
+        const icon = document.getElementById('vol-icon');
+        const muteBtn = document.getElementById('btn-mute');
+        if (!slider || !icon || !this.wavesurfer) return;
+        const muted = this.wavesurfer.getMuted();
+        const level = muted ? 0 : this.wavesurfer.getVolume();
+        const pct = Math.round(level * 100);
+        slider.value = pct;
+        slider.style.setProperty('--v', pct + '%');
+        // niente innerHTML: se i nodi vengono sostituiti durante il click, il click "esce" dal bottone e apre il player grande
+        const show = (sel, on) => { icon.querySelector(sel).style.display = on ? '' : 'none'; };
+        show('.vi-mute', level === 0);
+        show('.vi-low', level > 0);
+        show('.vi-high', level >= 0.5);
+        muteBtn.setAttribute('aria-label', level === 0 ? 'Unmute' : 'Mute');
+        muteBtn.title = level === 0 ? 'Unmute (M)' : 'Mute (M)';
+      },
+
+      // ---- Cover a schermo intero con effetto olografico ----
+      bindCoverZoom(el, src) {
+        const list = (Array.isArray(src) ? src : [src]).filter(Boolean);
+        if (!el || !list.length) return;
+        el.onclick = () => this.openCoverViewer(list);
+        el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.openCoverViewer(list); } };
+      },
+
+      openCoverViewer(list) {
+        this.coverList = Array.isArray(list) ? list : [list];
+        this.showCover(0, false);
+        document.getElementById('modal-cover').classList.remove('hidden');
+        this.holo.start();
+      },
+
+      showCover(i, animate = true) {
+        const n = this.coverList.length;
+        if (!n) return;
+        this.coverIndex = ((i % n) + n) % n;
+        const img = document.getElementById('holo-img');
+        img.style.backgroundImage = `url("${this.coverList[this.coverIndex]}")`;
+        if (animate) { img.classList.remove('swap'); void img.offsetWidth; img.classList.add('swap'); }
+        document.getElementById('holo-nav').classList.toggle('hidden', n < 2);
+        document.getElementById('holo-dots').innerHTML = this.coverList.map((_, k) =>
+          `<button type="button" class="holo-dot${k === this.coverIndex ? ' on' : ''}" data-i="${k}" aria-label="Cover ${k + 1} of ${n}"></button>`).join('');
+      },
+
+      closeCoverViewer() {
+        document.getElementById('modal-cover').classList.add('hidden');
+        this.holo.stop();
+      },
+
+      initCoverViewer() {
+        const ov = document.getElementById('modal-cover');
+        const stage = document.getElementById('holo-stage');
+        const card = document.getElementById('holo-card');
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const clamp = v => Math.min(1, Math.max(0, v));
+        const TILT = 9; // gradi massimi di inclinazione
+        let raf = 0, pointerOn = false;
+        let tx = .5, ty = .5, tg = .55;   // target
+        let cx = .5, cy = .5, cg = 0;     // valori correnti (inseguono il target, così il movimento è fluido)
+
+        const apply = (x, y, glow) => {
+          card.style.setProperty('--mx', (x * 100).toFixed(1) + '%');
+          card.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+          card.style.setProperty('--rx', ((0.5 - y) * 2 * TILT).toFixed(2) + 'deg');
+          card.style.setProperty('--ry', ((x - 0.5) * 2 * TILT).toFixed(2) + 'deg');
+          card.style.setProperty('--o', glow.toFixed(3));
+        };
+        const frame = (t) => {
+          if (!pointerOn) { tx = .5 + .32 * Math.sin(t / 1400); ty = .5 + .26 * Math.cos(t / 1900); tg = .55; }
+          cx += (tx - cx) * .12; cy += (ty - cy) * .12; cg += (tg - cg) * .1;
+          apply(cx, cy, cg);
+          raf = requestAnimationFrame(frame);
+        };
+        const move = (e) => {
+          const r = stage.getBoundingClientRect();
+          tx = clamp((e.clientX - r.left) / r.width);
+          ty = clamp((e.clientY - r.top) / r.height);
+          tg = 1;
+          if (reduceMotion) { cx = tx; cy = ty; cg = tg; apply(cx, cy, cg); }
+        };
+
+        stage.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { pointerOn = true; move(e); } });
+        stage.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') pointerOn = false; });
+        stage.addEventListener('pointerdown', (e) => {
+          pointerOn = true;
+          if (e.pointerType !== 'mouse') { try { stage.setPointerCapture(e.pointerId); } catch (_) {} }
+          move(e);
+        });
+        stage.addEventListener('pointermove', (e) => { if (pointerOn) move(e); });
+        const release = (e) => { if (e.pointerType !== 'mouse') pointerOn = false; };
+        stage.addEventListener('pointerup', release);
+        stage.addEventListener('pointercancel', release);
+
+        ov.addEventListener('click', (e) => { if (e.target === ov) this.closeCoverViewer(); });
+        document.getElementById('cover-close').onclick = () => this.closeCoverViewer();
+        document.getElementById('cover-prev').onclick = () => this.showCover(this.coverIndex - 1);
+        document.getElementById('cover-next').onclick = () => this.showCover(this.coverIndex + 1);
+        document.getElementById('holo-dots').addEventListener('click', (e) => {
+          const b = e.target.closest('.holo-dot');
+          if (b) this.showCover(+b.dataset.i);
+        });
+        document.addEventListener('keydown', (e) => {
+          if (ov.classList.contains('hidden')) return;
+          if (e.key === 'Escape') this.closeCoverViewer();
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            // a viewer aperto le frecce cambiano versione e non fanno il seek del brano
+            e.preventDefault(); e.stopImmediatePropagation();
+            if (this.coverList.length > 1) this.showCover(this.coverIndex + (e.key === 'ArrowRight' ? 1 : -1));
+          }
+        }, true);
+
+        this.holo = {
+          start: () => {
+            pointerOn = false; cx = .5; cy = .5; cg = 0; tg = .55;
+            cancelAnimationFrame(raf);
+            if (reduceMotion) { cx = .35; cy = .3; cg = .5; apply(cx, cy, cg); }
+            else raf = requestAnimationFrame(frame);
+          },
+          stop: () => { cancelAnimationFrame(raf); pointerOn = false; }
+        };
+      },
+
+      async setCollectionSort(id, mode) {
+        const col = this.data.collections.find(c => c.id === id);
+        if (!col) return;
+        col.sort = mode;
+        await this.persistData();
+        this.renderCollectionDetail(id);
       },
 
       async loadTrack(track) {
@@ -1782,7 +2129,7 @@
           : 'background-image:none; display:flex; align-items:center; justify-content:center; font-size:48px;';
 
         headerEl.innerHTML = `
-          <div class="detail-cover" style="${coverStyle}">${pl.cover ? '' : icona}</div>
+          <div class="detail-cover${pl.cover ? ' is-zoomable' : ''}" ${pl.cover ? 'role="button" tabindex="0" aria-label="Enlarge cover"' : ''} style="${coverStyle}">${pl.cover ? '' : icona}</div>
           <div style="flex:1;">
             <div class="detail-title">${esc(pl.title)}</div>
             <div class="detail-desc">${esc(pl.desc || 'No description')}</div>
@@ -1797,6 +2144,7 @@
             <button id="btn-edit-pl-head" class="btn btn-quiet">Edit</button>
           </div>
         `;
+        this.bindCoverZoom(headerEl.querySelector('.detail-cover'), pl.cover);
         document.getElementById('btn-edit-pl-head').onclick = () => this.openPlaylistModal(pl.id);
 
         if (!isFav) {
@@ -1865,8 +2213,6 @@
             ${isMatch ? '<span class="tag tag-match" style="margin-right:4px;">⚡ Match</span>' : ''}
             ${metaVal(t.bpm) ? `<span class="tag" style="margin-right:8px;">${esc(metaVal(t.bpm))} BPM</span>` : ''}
             ${metaVal(t.key) ? `<span class="tag" style="margin-right:8px;">${esc(metaVal(t.key))}</span>` : ''}
-            ${isPlaylistView ? `<button class="btn-quiet" style="font-size:12px; color:#ff4d4d; margin-right:8px;" onclick="app.removeFromPlaylist('${playlistId}', ${index})">Remove</button>` : ''}
-            
             <!-- TASTO PREFERITI (CUORE) -->
             <button class="btn-ctrl btn-fav-track" style="color: ${heartColor}; opacity: ${heartOpacity};" title="Toggle Favorite">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="${heartFill}" stroke="${heartStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1910,7 +2256,7 @@
           }
         };
 
-        item.querySelector('.btn-more-track').onclick = () => this.openTrackMenu(t);
+        item.querySelector('.btn-more-track').onclick = () => this.openTrackMenu(t, isPlaylistView ? { playlistId, index } : null);
         return item;
       },
 
@@ -1981,7 +2327,7 @@
         document.getElementById('nav-current').innerText = col.title;
         const headerEl = document.getElementById('collection-header-detail');
         headerEl.innerHTML = `
-          <div class="detail-cover" style="background-image:${col.cover ? `url('${col.cover}')` : 'none'}"></div>
+          <div class="detail-cover${col.cover ? ' is-zoomable' : ''}" ${col.cover ? 'role="button" tabindex="0" aria-label="Enlarge cover"' : ''} style="background-image:${col.cover ? `url('${col.cover}')` : 'none'}"></div>
           <div style="flex:1;">
             <div class="detail-title">${esc(col.title)}</div>
             <div class="detail-desc">${esc(col.desc || 'No description')}</div>
@@ -2000,8 +2346,9 @@
           </div>
         `;
 
+        this.bindCoverZoom(headerEl.querySelector('.detail-cover'), [col.cover, ...(col.covers || [])]);
         document.getElementById('btn-play-col').onclick = () => {
-          const tracks = this.data.tracks.filter(t => t.collectionId === id);
+          const tracks = this.getCollectionTracks(id);
           if (tracks.length > 0) {
              if (this.isShuffle) {
                 const randTrack = tracks[Math.floor(Math.random() * tracks.length)];
@@ -2017,8 +2364,12 @@
 
         const listEl = document.getElementById('tracks-list');
         listEl.innerHTML = '';
-        const tracks = this.data.tracks.filter(t => t.collectionId === id);
+        const tracks = this.getCollectionTracks(id);
         const curTrack = this.queue[this.queueIndex];
+
+        const sortEl = document.getElementById('col-sort-select');
+        sortEl.value = col.sort || 'added';
+        sortEl.onchange = () => this.setCollectionSort(id, sortEl.value);
 
         if (tracks.length === 0) {
           listEl.innerHTML = `<div style="text-align:center; padding:60px 0; color:#8c8c8c; font-size:14px;">No tracks yet. Add the first one.</div>`;
