@@ -144,6 +144,19 @@
     .sort-select { appearance: none; -webkit-appearance: none; padding-right: 30px; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23bdbdbd' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 12px center; max-width: 160px; }
     .sort-select option { background: #000; color: #fff; }
 
+    /* Lyrics nel player grande */
+    .full-lyrics { display: none; position: relative; overflow-y: auto; overscroll-behavior: contain; padding: 30vh 4px; text-align: center; scrollbar-width: none; -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); }
+    .full-lyrics::-webkit-scrollbar { display: none; }
+    .full-lyrics.plain { padding: 24px 4px; }
+    #full-player.lyrics-on .full-lyrics { display: block; flex: 1; min-height: 0; }
+    #full-player.lyrics-on .full-body { gap: 14px; justify-content: flex-start; padding-top: 8px; }
+    #full-player.lyrics-on .full-title { font-size: clamp(20px, 4vw, 28px); letter-spacing: -.03em; }
+    #full-player.lyrics-on .full-sub { margin-top: 6px; }
+    .ly-line { font-size: clamp(20px, 4.2vw, 30px); font-weight: 700; letter-spacing: -.02em; line-height: 1.25; padding: 7px 8px; color: rgba(255,255,255,.35); cursor: pointer; transition: color .25s; overflow-wrap: anywhere; }
+    .ly-line:hover { color: rgba(255,255,255,.6); }
+    .ly-line.on { color: #fff; }
+    .ly-plain { white-space: pre-wrap; font-size: clamp(17px, 3.6vw, 22px); line-height: 1.55; font-weight: 500; color: rgba(255,255,255,.88); padding: 0 8px; overflow-wrap: anywhere; }
+
     /* Cover ingrandibile + effetto olografico */
     .detail-cover.is-zoomable { cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
     .detail-cover.is-zoomable:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
@@ -392,6 +405,7 @@
       <div class="full-top">
         <button id="full-close" class="btn-ctrl" aria-label="Close player"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
         <div style="display:flex; gap:8px;">
+          <button id="full-lyrics-btn" class="btn-ctrl" aria-label="Lyrics" aria-pressed="false" style="display:none;"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 11h10M4 16h16M4 21h7"/></svg></button>
           <button id="full-queue-btn" class="btn-ctrl" aria-label="Queue"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
           <button id="full-more-btn" class="btn-ctrl" aria-label="More Options"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 8a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg></button>
         </div>
@@ -401,6 +415,7 @@
           <div id="full-title" class="full-title">Track</div>
           <div id="full-sub" class="full-sub">--</div>
         </div>
+        <div id="full-lyrics" class="full-lyrics"></div>
         <div id="full-wave-holder"></div>
         <div class="full-times"><span id="full-time">0:00</span><span id="full-duration">0:00</span></div>
       </div>
@@ -635,6 +650,15 @@
         <label class="label">Credits (one per line, Role: Name)</label>
         <textarea id="track-credits-input" class="input-field" placeholder="Producer: Name&#10;Mixing: Name&#10;Vocals: Name"></textarea>
       </div>
+      <div>
+        <label class="label">Lyrics (plain text, or LRC for synced)</label>
+        <textarea id="track-lyrics-input" class="input-field" rows="4" placeholder="Paste text, or LRC lines like [00:12.50] First line"></textarea>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+          <button type="button" id="btn-import-lyrics" class="btn">Import .lrc / .txt</button>
+          <span id="lyrics-status" class="label" style="margin:0;"></span>
+        </div>
+        <input type="file" id="track-lyrics-file" accept=".lrc,.txt,text/plain" style="display:none">
+      </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
         <button id="btn-cancel-track" class="btn">Cancel</button>
         <button id="btn-save-track" class="btn btn-white">Upload</button>
@@ -680,6 +704,11 @@
       tempCroppedImageBase64: null,
       tempCollectionCovers: [],
       coverList: [],
+      lyrics: null,
+      lyIdx: -1,
+      lyEls: [],
+      lyricsOn: false,
+      lyUserScrollUntil: 0,
       coverIndex: 0,
       editingCollectionId: null,
 
@@ -815,6 +844,7 @@
           const f = this.formatTime(t);
           document.getElementById('player-time').innerText = f;
           document.getElementById('full-time').innerText = f;
+          this.updateLyrics(t);
           if ('mediaSession' in navigator && navigator.mediaSession.setPositionState) {
             const d = this.wavesurfer.getDuration();
             if (isFinite(d) && d > 0) { try { navigator.mediaSession.setPositionState({ duration: d, position: Math.min(t, d), playbackRate: 1 }); } catch (_) {} }
@@ -1227,6 +1257,23 @@
         document.getElementById('btn-open-add-library-track').onclick = () => this.openTrackModal();
         document.getElementById('btn-cancel-track').onclick = () => this.closeTrackModal();
         document.getElementById('btn-save-track').onclick = () => this.saveTrack();
+        document.getElementById('btn-import-lyrics').onclick = () => document.getElementById('track-lyrics-file').click();
+        document.getElementById('track-lyrics-file').addEventListener('change', async (e) => {
+          const f = e.target.files[0];
+          e.target.value = '';
+          if (!f) return;
+          try {
+            const buf = await f.arrayBuffer();
+            let txt;
+            try { txt = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+            catch (_) { txt = new TextDecoder('windows-1252').decode(buf); }
+            document.getElementById('track-lyrics-input').value = txt.replace(/^\uFEFF/, '');
+            this.updateLyricsStatus();
+          } catch (err) { alert('Could not read this file.'); }
+        });
+        document.getElementById('track-lyrics-input').addEventListener('input', () => this.updateLyricsStatus());
+        document.getElementById('full-lyrics-btn').onclick = () => this.setLyricsView(!this.lyricsOn);
+        ['wheel', 'touchmove'].forEach(ev => document.getElementById('full-lyrics').addEventListener(ev, () => { this.lyUserScrollUntil = Date.now() + 3000; }, { passive: true }));
         document.getElementById('track-cover-file').addEventListener('change', (e) => {
           const file = e.target.files && e.target.files[0];
           if (!file) return;
@@ -1603,6 +1650,8 @@
         document.getElementById('track-key-input').value = t ? clean(t.key) : '';
         document.getElementById('track-desc-input').value = t ? (t.description || '') : '';
         document.getElementById('track-credits-input').value = t ? this.creditsToText(t.credits) : '';
+        document.getElementById('track-lyrics-input').value = t ? (t.lyrics || '') : '';
+        this.updateLyricsStatus();
         document.getElementById('track-audio-file').value = '';
         document.getElementById('track-cover-file').value = '';
         this.tempTrackCover = t ? (t.cover || null) : null;
@@ -1624,6 +1673,7 @@
         const key = document.getElementById('track-key-input').value.trim();
         const description = document.getElementById('track-desc-input').value.trim();
         const credits = this.parseCredits(document.getElementById('track-credits-input').value);
+        const lyrics = document.getElementById('track-lyrics-input').value.trim();
 
         const editing = this.editingTrackId ? this.data.tracks.find(t => t.id === this.editingTrackId) : null;
         if (!editing && files.length === 0) return alert('Select at least one audio file');
@@ -1640,11 +1690,12 @@
               return alert('Not enough storage space to save this track.');
             }
           }
-          Object.assign(editing, { title: title || editing.title, bpm: bpm || '---', key: key || '---', description, credits });
+          Object.assign(editing, { title: title || editing.title, bpm: bpm || '---', key: key || '---', description, credits, lyrics });
+          if (!lyrics) delete editing.lyrics;
           if (this.removeTrackCover) delete editing.cover;
           else if (this.tempTrackCover) editing.cover = this.tempTrackCover;
           const cur = this.queue[this.queueIndex];
-          if (cur && cur.id === editing.id) this.updatePlayerMeta(editing);
+          if (cur && cur.id === editing.id) { this.updatePlayerMeta(editing); this.setLyrics(editing); }
         } else {
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
@@ -1657,7 +1708,7 @@
               break;
             }
             const finalTitle = (files.length === 1 && title) ? title : file.name.replace(/\.[^/.]+$/, "");
-            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', description, credits, cover: this.tempTrackCover || null });
+            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', description, credits, cover: this.tempTrackCover || null, ...(files.length === 1 && lyrics ? { lyrics } : {}) });
           }
         }
 
@@ -1678,6 +1729,89 @@
             artwork: (t.cover || (col && col.cover)) ? [{ src: t.cover || col.cover, sizes: '500x500', type: 'image/jpeg' }] : []
           });
         } catch (_) {}
+      },
+
+      parseLyrics(raw) {
+        if (!raw || !raw.trim()) return null;
+        const lines = [];
+        let offset = 0;
+        for (const row of raw.replace(/\r/g, '').split('\n')) {
+          const off = row.match(/^\s*\[offset:\s*([+-]?\d+)\s*\]/i);
+          if (off) { offset = parseInt(off[1], 10) / 1000; continue; }
+          const m = row.match(/^\s*((?:\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]\s*)+)(.*)$/);
+          if (!m) continue;
+          const text = m[2].replace(/<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>/g, '').trim();
+          for (const tm of m[1].matchAll(/\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g)) {
+            lines.push({ t: (+tm[1]) * 60 + (+tm[2]) + (tm[3] ? parseFloat('0.' + tm[3]) : 0), text });
+          }
+        }
+        if (lines.length) {
+          lines.forEach(l => { l.t = Math.max(0, l.t - offset); });
+          lines.sort((a, b) => a.t - b.t);
+          return { synced: true, lines };
+        }
+        return { synced: false, text: raw.trim() };
+      },
+
+      updateLyricsStatus() {
+        const p = this.parseLyrics(document.getElementById('track-lyrics-input').value);
+        document.getElementById('lyrics-status').textContent = !p ? '' : p.synced ? `Synced, ${p.lines.length} lines` : 'Plain text (not synced)';
+      },
+
+      setLyrics(t) {
+        this.lyrics = this.parseLyrics(t && t.lyrics);
+        this.lyIdx = -1;
+        this.lyEls = [];
+        const box = document.getElementById('full-lyrics');
+        box.innerHTML = '';
+        box.classList.toggle('plain', !!this.lyrics && !this.lyrics.synced);
+        document.getElementById('full-lyrics-btn').style.display = this.lyrics ? '' : 'none';
+        if (!this.lyrics) { this.setLyricsView(false); return; }
+        if (this.lyrics.synced) {
+          this.lyEls = this.lyrics.lines.map(l => {
+            const d = document.createElement('div');
+            d.className = 'ly-line';
+            d.textContent = l.text || '♪';
+            d.onclick = () => { if (this.wavesurfer) this.wavesurfer.setTime(l.t); };
+            box.appendChild(d);
+            return d;
+          });
+        } else {
+          const pEl = document.createElement('div');
+          pEl.className = 'ly-plain';
+          pEl.textContent = this.lyrics.text;
+          box.appendChild(pEl);
+        }
+        box.scrollTop = 0;
+      },
+
+      setLyricsView(on) {
+        this.lyricsOn = !!on && !!this.lyrics;
+        document.getElementById('full-player').classList.toggle('lyrics-on', this.lyricsOn);
+        const b = document.getElementById('full-lyrics-btn');
+        b.classList.toggle('active', this.lyricsOn);
+        b.setAttribute('aria-pressed', this.lyricsOn ? 'true' : 'false');
+        if (this.lyricsOn && this.lyEls[this.lyIdx]) this.scrollLyric(this.lyEls[this.lyIdx], true);
+      },
+
+      updateLyrics(t) {
+        const L = this.lyrics;
+        if (!L || !L.synced) return;
+        let lo = 0, hi = L.lines.length - 1, i = -1;
+        while (lo <= hi) { const mid = (lo + hi) >> 1; if (L.lines[mid].t <= t + 0.05) { i = mid; lo = mid + 1; } else hi = mid - 1; }
+        if (i === this.lyIdx) return;
+        const prev = this.lyEls[this.lyIdx];
+        if (prev) prev.classList.remove('on');
+        this.lyIdx = i;
+        const cur = this.lyEls[i];
+        if (cur) { cur.classList.add('on'); this.scrollLyric(cur); }
+      },
+
+      scrollLyric(el, instant) {
+        if (!this.lyricsOn || (!instant && Date.now() < this.lyUserScrollUntil)) return;
+        const box = document.getElementById('full-lyrics');
+        const smooth = !instant && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        box.scrollTo({ top: el.offsetTop - box.clientHeight / 2 + el.offsetHeight / 2, behavior: smooth ? 'smooth' : 'auto' });
       },
 
       updatePlayerMeta(t) {
@@ -1974,6 +2108,7 @@
         document.getElementById('player-cover').style.backgroundImage = coverCss;
         document.getElementById('full-bg').style.backgroundImage = coverCss;
         this.updateMediaSession(track);
+        this.setLyrics(track);
 
         const blob = await localforage.getItem(this.audioKey(track.id));
         const src = blob ? URL.createObjectURL(blob) : track.audioData;
@@ -2341,6 +2476,7 @@
             </div>
           </div>
           <div style="position: absolute; top: 0; right: 0; display:flex; gap: 8px;">
+            <button id="btn-export-col-head" class="btn btn-quiet">Export</button>
             <button id="btn-edit-col-head" class="btn btn-quiet">Edit</button>
             <button id="btn-delete-col" class="btn btn-quiet" style="color: var(--mute);">✕</button>
           </div>
@@ -2359,6 +2495,7 @@
           }
         };
         document.getElementById('btn-shuffle-col').onclick = () => this.toggleShuffle();
+        document.getElementById('btn-export-col-head').onclick = () => this.exportCollection(col.id);
         document.getElementById('btn-edit-col-head').onclick = () => this.openCollectionModal(col.id);
         document.getElementById('btn-delete-col').onclick = () => this.deleteCollection(col.id);
 
@@ -2388,14 +2525,12 @@
         return `${mins}:${secs.toString().padStart(2, '0')}`;
       },
 
-      async exportBackup() {
-        const btn = document.getElementById('btn-export');
-        const label = btn.innerText;
+      async downloadBackup(collections, playlists, tracks, name, btn) {
+        const label = btn ? btn.innerText : '';
         try {
-          const parts = [JSON.stringify({ crypt: 2, collections: this.data.collections, playlists: this.data.playlists }) + '\n'];
-          const tracks = this.data.tracks;
+          const parts = [JSON.stringify({ crypt: 2, collections, playlists }) + '\n'];
           for (let i = 0; i < tracks.length; i++) {
-            btn.innerText = `${i + 1}/${tracks.length}`;
+            if (btn) btn.innerText = `${i + 1}/${tracks.length}`;
             const meta = { ...tracks[i] };
             delete meta.audioData;
             const blob = await localforage.getItem(this.audioKey(meta.id));
@@ -2405,15 +2540,28 @@
           const url = URL.createObjectURL(new Blob(parts, { type: 'application/json' }));
           const a = document.createElement('a');
           a.href = url;
-          a.download = `crypt_backup_${Date.now()}.json`;
+          a.download = `${name}_${Date.now()}.json`;
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 60000);
         } catch (err) {
           console.error(err);
-          alert('Backup failed: ' + err.message);
+          alert('Export failed: ' + err.message);
         } finally {
-          btn.innerText = label;
+          if (btn) btn.innerText = label;
         }
+      },
+
+      exportBackup() {
+        return this.downloadBackup(this.data.collections, this.data.playlists, this.data.tracks, 'crypt_backup', document.getElementById('btn-export'));
+      },
+
+      // Esporta una sola collection con le sue tracce: stesso formato del backup, si reimporta con "Import"
+      exportCollection(id) {
+        const col = this.data.collections.find(c => c.id === id);
+        if (!col) return;
+        const slug = (col.title || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'collection';
+        const tracks = this.data.tracks.filter(t => t.collectionId === id);
+        return this.downloadBackup([col], [], tracks, 'crypt_collection_' + slug, document.getElementById('btn-export-col-head'));
       },
 
       async readLines(file, onLine) {
