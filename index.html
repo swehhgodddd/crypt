@@ -145,10 +145,12 @@
     .sort-select option { background: #000; color: #fff; }
 
     /* Lyrics nel player grande */
-    .full-lyrics { display: none; position: relative; overflow-y: auto; overscroll-behavior: contain; padding: 30vh 4px; text-align: center; scrollbar-width: none; -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); }
+    .full-lyrics { display: none; position: relative; overflow-y: auto; overscroll-behavior: contain; padding: 0 4px; text-align: center; scrollbar-width: none; -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); }
     .full-lyrics::-webkit-scrollbar { display: none; }
-    .full-lyrics.plain { padding: 24px 4px; }
-    #full-player.lyrics-on .full-lyrics { display: block; flex: 1; min-height: 0; }
+    .full-lyrics::before, .full-lyrics::after { content: ''; display: block; height: 30vh; }
+    .full-lyrics.plain { padding: 8px 4px 24px; }
+    .full-lyrics.plain::before, .full-lyrics.plain::after { display: none; }
+    #full-player.lyrics-on .full-lyrics { display: block; flex: 1; min-height: 120px; }
     #full-player.lyrics-on .full-body { gap: 14px; justify-content: flex-start; padding-top: 8px; }
     #full-player.lyrics-on .full-title { font-size: clamp(20px, 4vw, 28px); letter-spacing: -.03em; }
     #full-player.lyrics-on .full-sub { margin-top: 6px; }
@@ -156,6 +158,10 @@
     .ly-line:hover { color: rgba(255,255,255,.6); }
     .ly-line.on { color: #fff; }
     .ly-plain { white-space: pre-wrap; font-size: clamp(17px, 3.6vw, 22px); line-height: 1.55; font-weight: 500; color: rgba(255,255,255,.88); padding: 0 8px; overflow-wrap: anywhere; }
+
+    .ly-sync { display: none; justify-content: center; align-items: center; gap: 10px; font-size: 12px; color: #bdbdbd; }
+    #full-player.lyrics-on .ly-sync.show { display: flex; }
+    .ly-sync .btn { padding: 5px 12px; }
 
     /* Cover ingrandibile + effetto olografico */
     .detail-cover.is-zoomable { cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
@@ -416,6 +422,7 @@
           <div id="full-sub" class="full-sub">--</div>
         </div>
         <div id="full-lyrics" class="full-lyrics"></div>
+        <div id="ly-sync" class="ly-sync"><button type="button" id="ly-earlier" class="btn">Sooner 0.5s</button><span id="ly-shift">0.0s</span><button type="button" id="ly-later" class="btn">Later 0.5s</button></div>
         <div id="full-wave-holder"></div>
         <div class="full-times"><span id="full-time">0:00</span><span id="full-duration">0:00</span></div>
       </div>
@@ -535,11 +542,12 @@
         </div>
       </div>
       <div>
-        <label class="label">More cover versions (shown when the cover is enlarged)</label>
+        <label class="label">More cover versions (shown when enlarged; tap one to make it the main cover)</label>
         <div id="col-alt-covers" class="alt-covers"></div>
         <input type="file" id="col-alt-file" accept="image/*" style="display:none">
       </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+        <button id="btn-delete-col-modal" class="btn" style="border-color:#ff4d4d; color:#ff4d4d; margin-right:auto; display:none;">Delete</button>
         <button id="btn-cancel-col" class="btn">Cancel</button>
         <button id="btn-save-col" class="btn btn-white">Save</button>
       </div>
@@ -706,6 +714,7 @@
       coverList: [],
       lyrics: null,
       lyIdx: -1,
+      lyShift: 0,
       lyEls: [],
       lyricsOn: false,
       lyUserScrollUntil: 0,
@@ -734,8 +743,11 @@
         
         // CONTROLLO PLAYLIST PREFERITI (Creazione se mancante)
         if (!this.data.playlists.find(p => p.id === 'pl_preferiti')) {
-          this.data.playlists.unshift({ id: 'pl_preferiti', title: 'Preferiti', desc: 'I tuoi brani preferiti', trackIds: [] });
+          this.data.playlists.unshift({ id: 'pl_preferiti', title: 'Favorites', desc: 'Your favorite tracks', trackIds: [] });
         }
+
+        const favMig = this.data.playlists.find(p => p.id === 'pl_preferiti');
+        if (favMig && favMig.title === 'Preferiti') { favMig.title = 'Favorites'; if (favMig.desc === 'I tuoi brani preferiti') favMig.desc = 'Your favorite tracks'; }
 
         if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
         try { await this.migrateLegacyAudio(); } catch (err) { console.warn('Audio migration:', err); }
@@ -871,7 +883,7 @@
       setWaveMode(full) {
         try {
           this.wavesurfer.setOptions(full
-            ? { height: window.innerWidth <= 520 ? 150 : 220, minPxPerSec: 70, barWidth: 3, barGap: 3, barRadius: 3 }
+            ? { height: document.getElementById('full-player').classList.contains('lyrics-on') ? 72 : (window.innerWidth <= 520 ? 150 : 220), minPxPerSec: 70, barWidth: 3, barGap: 3, barRadius: 3 }
             : { height: 48, minPxPerSec: 0, barWidth: 2, barGap: 2, barRadius: 2 });
         } catch (err) { console.warn('Waveform resize:', err); }
       },
@@ -1041,7 +1053,7 @@
         try {
           const blob = await localforage.getItem(this.audioKey(track.id));
           if (!blob) {
-            return alert('File audio non trovato per la condivisione.');
+            return alert('Audio file not found for sharing.');
           }
           
           let ext = 'mp3';
@@ -1058,11 +1070,11 @@
               files: [file]
             });
           } else {
-            throw new Error('Condivisione API non supportata');
+            throw new Error('Share API not supported');
           }
         } catch (err) {
           if (err.name !== 'AbortError') {
-            console.error('Errore condivisione, avvio download di fallback:', err);
+            console.error('Share failed, falling back to download:', err);
             const blob = await localforage.getItem(this.audioKey(track.id));
             if (blob) {
               const url = URL.createObjectURL(blob);
@@ -1084,7 +1096,7 @@
       async toggleFavorite(trackId) {
         let fav = this.data.playlists.find(p => p.id === 'pl_preferiti');
         if (!fav) {
-          fav = { id: 'pl_preferiti', title: 'Preferiti', desc: 'I tuoi brani preferiti', trackIds: [] };
+          fav = { id: 'pl_preferiti', title: 'Favorites', desc: 'Your favorite tracks', trackIds: [] };
           this.data.playlists.unshift(fav);
         }
         
@@ -1215,6 +1227,13 @@
         document.getElementById('nav-home').onclick = () => this.goHome();
 
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
+        document.getElementById('btn-delete-col-modal').onclick = async () => {
+          const id = this.editingCollectionId;
+          if (!id) return;
+          const before = this.data.collections.length;
+          await this.deleteCollection(id);
+          if (this.data.collections.length < before) this.closeCollectionModal();
+        };
         document.getElementById('btn-save-col').onclick = () => this.saveCollection();
 
         document.getElementById('btn-open-create-playlist').onclick = () => this.openPlaylistModal();
@@ -1273,6 +1292,9 @@
         });
         document.getElementById('track-lyrics-input').addEventListener('input', () => this.updateLyricsStatus());
         document.getElementById('full-lyrics-btn').onclick = () => this.setLyricsView(!this.lyricsOn);
+        const nudge = (d) => { this.lyShift = Math.round((this.lyShift + d) * 10) / 10; this.applyLyShift(); };
+        document.getElementById('ly-earlier').onclick = () => nudge(0.5);
+        document.getElementById('ly-later').onclick = () => nudge(-0.5);
         ['wheel', 'touchmove'].forEach(ev => document.getElementById('full-lyrics').addEventListener(ev, () => { this.lyUserScrollUntil = Date.now() + 3000; }, { passive: true }));
         document.getElementById('track-cover-file').addEventListener('change', (e) => {
           const file = e.target.files && e.target.files[0];
@@ -1469,7 +1491,7 @@
         const file = input.files && input.files[0];
         if (!file) return;
         if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name)) {
-          alert('Seleziona un file immagine (JPG, PNG, WEBP).');
+          alert('Select an image file (JPG, PNG, WEBP).');
           input.value = '';
           return;
         }
@@ -1479,7 +1501,7 @@
           this.openCropModal(dataUrl);
         } catch (err) {
           console.error('Cover load error:', err);
-          alert('Impossibile leggere questa immagine. Prova con un JPG o PNG.');
+          alert('Could not read this image. Try a JPG or PNG.');
         }
         input.value = '';
       },
@@ -1506,7 +1528,10 @@
         try {
           const { usage, quota } = await navigator.storage.estimate();
           const fmt = n => n >= 1073741824 ? (n / 1073741824).toFixed(1) + ' GB' : Math.round(n / 1048576) + ' MB';
-          el.innerText = `Storage: ${fmt(usage)} used of ${fmt(quota)}` + (usage / quota > 0.85 ? ' (almost full, make a backup)' : '');
+          let last = 0;
+          try { last = +localStorage.getItem('crypt_last_backup') || 0; } catch (_) {}
+          const stale = !last || Date.now() - last > 14 * 864e5;
+          el.innerText = `Storage: ${fmt(usage)} used of ${fmt(quota)}` + (usage / quota > 0.85 ? ' (almost full, make a backup)' : '') + ` · Last backup: ${last ? new Date(last).toLocaleDateString() : 'never'}` + (stale ? ' (back up soon)' : '');
         } catch (_) {}
       },
 
@@ -1562,6 +1587,7 @@
           document.getElementById('col-cover-preview').style.backgroundImage = 'none';
         }
         this.renderAltCovers();
+        document.getElementById('btn-delete-col-modal').style.display = id ? '' : 'none';
         modal.classList.remove('hidden');
       },
 
@@ -1572,9 +1598,18 @@
           const d = document.createElement('div');
           d.className = 'alt-cover';
           d.style.backgroundImage = `url("${src}")`;
+          d.style.cursor = 'pointer';
+          d.title = 'Set as main cover';
+          d.onclick = () => {
+            const main = this.tempCroppedImageBase64;
+            this.tempCroppedImageBase64 = src;
+            if (main) this.tempCollectionCovers[i] = main; else this.tempCollectionCovers.splice(i, 1);
+            document.getElementById('col-cover-preview').style.backgroundImage = `url('${src}')`;
+            this.renderAltCovers();
+          };
           const x = document.createElement('button');
           x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Remove this version');
-          x.onclick = () => { this.tempCollectionCovers.splice(i, 1); this.renderAltCovers(); };
+          x.onclick = (e) => { e.stopPropagation(); this.tempCollectionCovers.splice(i, 1); this.renderAltCovers(); };
           d.appendChild(x);
           box.appendChild(d);
         });
@@ -1616,6 +1651,8 @@
 
       async deleteCollection(id) {
         if (!confirm("Are you sure? All tracks inside will be deleted.")) return;
+        const goneIds = new Set(this.data.tracks.filter(t => t.collectionId === id).map(t => t.id));
+        this.data.playlists.forEach(pl => { pl.trackIds = pl.trackIds.filter(tid => !goneIds.has(tid)); });
         this.data.collections = this.data.collections.filter(c => c.id !== id);
         for (const t of this.data.tracks.filter(t => t.collectionId === id)) { await localforage.removeItem(this.audioKey(t.id)); await localforage.removeItem('peaks_' + t.id); }
         this.data.tracks = this.data.tracks.filter(t => t.collectionId !== id);
@@ -1762,6 +1799,8 @@
         this.lyrics = this.parseLyrics(t && t.lyrics);
         this.lyIdx = -1;
         this.lyEls = [];
+        this.lyShift = (t && t.lyricsShift) || 0;
+        document.getElementById('ly-shift').textContent = (this.lyShift > 0 ? '+' : '') + this.lyShift.toFixed(1) + 's';
         const box = document.getElementById('full-lyrics');
         box.innerHTML = '';
         box.classList.toggle('plain', !!this.lyrics && !this.lyrics.synced);
@@ -1783,6 +1822,7 @@
           box.appendChild(pEl);
         }
         box.scrollTop = 0;
+        this.refreshLySync();
       },
 
       setLyricsView(on) {
@@ -1791,20 +1831,39 @@
         const b = document.getElementById('full-lyrics-btn');
         b.classList.toggle('active', this.lyricsOn);
         b.setAttribute('aria-pressed', this.lyricsOn ? 'true' : 'false');
+        if (document.getElementById('full-player').classList.contains('open')) this.setWaveMode(true);
         if (this.lyricsOn && this.lyEls[this.lyIdx]) this.scrollLyric(this.lyEls[this.lyIdx], true);
+        this.refreshLySync();
       },
 
       updateLyrics(t) {
         const L = this.lyrics;
         if (!L || !L.synced) return;
         let lo = 0, hi = L.lines.length - 1, i = -1;
-        while (lo <= hi) { const mid = (lo + hi) >> 1; if (L.lines[mid].t <= t + 0.05) { i = mid; lo = mid + 1; } else hi = mid - 1; }
+        while (lo <= hi) { const mid = (lo + hi) >> 1; if (L.lines[mid].t <= t + this.lyShift + 0.05) { i = mid; lo = mid + 1; } else hi = mid - 1; }
         if (i === this.lyIdx) return;
         const prev = this.lyEls[this.lyIdx];
         if (prev) prev.classList.remove('on');
         this.lyIdx = i;
         const cur = this.lyEls[i];
         if (cur) { cur.classList.add('on'); this.scrollLyric(cur); }
+      },
+
+      refreshLySync() {
+        document.getElementById('ly-sync').classList.toggle('show', this.lyricsOn && !!this.lyrics && this.lyrics.synced);
+      },
+
+      applyLyShift() {
+        document.getElementById('ly-shift').textContent = (this.lyShift > 0 ? '+' : '') + this.lyShift.toFixed(1) + 's';
+        this.lyEls.forEach(e => e.classList.remove('on'));
+        this.lyIdx = -2;
+        if (this.wavesurfer) this.updateLyrics(this.wavesurfer.getCurrentTime());
+        const tr = this.data.tracks.find(x => x.id === this.currentTrackId);
+        if (tr) {
+          if (this.lyShift) tr.lyricsShift = this.lyShift; else delete tr.lyricsShift;
+          clearTimeout(this._lyT);
+          this._lyT = setTimeout(() => this.persistData(), 600);
+        }
       },
 
       scrollLyric(el, instant) {
@@ -2276,10 +2335,12 @@
             </div>
           </div>
           <div style="position: absolute; top: 0; right: 0; display:flex; gap: 8px;">
+            <button id="btn-export-pl-head" class="btn btn-quiet">Export</button>
             <button id="btn-edit-pl-head" class="btn btn-quiet">Edit</button>
           </div>
         `;
         this.bindCoverZoom(headerEl.querySelector('.detail-cover'), pl.cover);
+        document.getElementById('btn-export-pl-head').onclick = () => this.exportPlaylist(pl.id);
         document.getElementById('btn-edit-pl-head').onclick = () => this.openPlaylistModal(pl.id);
 
         if (!isFav) {
@@ -2478,7 +2539,6 @@
           <div style="position: absolute; top: 0; right: 0; display:flex; gap: 8px;">
             <button id="btn-export-col-head" class="btn btn-quiet">Export</button>
             <button id="btn-edit-col-head" class="btn btn-quiet">Edit</button>
-            <button id="btn-delete-col" class="btn btn-quiet" style="color: var(--mute);">✕</button>
           </div>
         `;
 
@@ -2497,7 +2557,6 @@
         document.getElementById('btn-shuffle-col').onclick = () => this.toggleShuffle();
         document.getElementById('btn-export-col-head').onclick = () => this.exportCollection(col.id);
         document.getElementById('btn-edit-col-head').onclick = () => this.openCollectionModal(col.id);
-        document.getElementById('btn-delete-col').onclick = () => this.deleteCollection(col.id);
 
         const listEl = document.getElementById('tracks-list');
         listEl.innerHTML = '';
@@ -2543,16 +2602,30 @@
           a.download = `${name}_${Date.now()}.json`;
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 60000);
+          return true;
         } catch (err) {
           console.error(err);
           alert('Export failed: ' + err.message);
+          return false;
         } finally {
           if (btn) btn.innerText = label;
         }
       },
 
-      exportBackup() {
-        return this.downloadBackup(this.data.collections, this.data.playlists, this.data.tracks, 'crypt_backup', document.getElementById('btn-export'));
+      async exportBackup() {
+        const ok = await this.downloadBackup(this.data.collections, this.data.playlists, this.data.tracks, 'crypt_backup', document.getElementById('btn-export'));
+        if (ok) { try { localStorage.setItem('crypt_last_backup', String(Date.now())); } catch (_) {} this.updateStorageInfo(); }
+      },
+
+      // Esporta una playlist con le sue tracce (e le collection di provenienza, così l'import le ritrova)
+      exportPlaylist(id) {
+        const pl = this.data.playlists.find(p => p.id === id);
+        if (!pl) return;
+        const tracks = pl.trackIds.map(tid => this.data.tracks.find(t => t.id === tid)).filter(Boolean);
+        const colIds = new Set(tracks.map(t => t.collectionId).filter(Boolean));
+        const cols = this.data.collections.filter(c => colIds.has(c.id));
+        const slug = (pl.title || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'playlist';
+        return this.downloadBackup(cols, [pl], tracks, 'crypt_playlist_' + slug, document.getElementById('btn-export-pl-head'));
       },
 
       // Esporta una sola collection con le sue tracce: stesso formato del backup, si reimporta con "Import"
@@ -2695,7 +2768,7 @@
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
           .then(reg => console.log('SW registrato!', reg))
-          .catch(err => console.log('Errore SW:', err));
+          .catch(err => console.log('SW error:', err));
       });
     }
   </script>
