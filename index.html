@@ -163,6 +163,10 @@
     #full-player.lyrics-on .ly-sync.show { display: flex; }
     .ly-sync .btn { padding: 5px 12px; }
 
+    .match-preview { margin-top: 8px; font-size: 12px; color: var(--mute); max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+    .match-preview .sum { color: #fff; }
+    .match-preview .bad { color: #ff4d4d; }
+
     /* Cover ingrandibile + effetto olografico */
     .detail-cover.is-zoomable { cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
     .detail-cover.is-zoomable:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
@@ -546,6 +550,11 @@
         <div id="col-alt-covers" class="alt-covers"></div>
         <input type="file" id="col-alt-file" accept="image/*" style="display:none">
       </div>
+      <div id="col-lyrics-wrap" style="display:none;">
+        <label class="label">Lyrics files for this collection (.lrc / .txt, matched by number or name)</label>
+        <input type="file" id="col-lyrics-files" accept=".lrc,.txt,text/plain" multiple class="input-file-native">
+        <div id="col-lyrics-preview" class="match-preview"></div>
+      </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
         <button id="btn-delete-col-modal" class="btn" style="border-color:#ff4d4d; color:#ff4d4d; margin-right:auto; display:none;">Delete</button>
         <button id="btn-cancel-col" class="btn">Cancel</button>
@@ -667,6 +676,11 @@
         </div>
         <input type="file" id="track-lyrics-file" accept=".lrc,.txt,text/plain" style="display:none">
       </div>
+      <div id="track-lyrics-multi-wrap">
+        <label class="label">Lyrics files for several tracks (.lrc / .txt, matched by number or name)</label>
+        <input type="file" id="track-lyrics-multi" accept=".lrc,.txt,text/plain" multiple class="input-file-native">
+        <div id="lyrics-match-preview" class="match-preview"></div>
+      </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
         <button id="btn-cancel-track" class="btn">Cancel</button>
         <button id="btn-save-track" class="btn btn-white">Upload</button>
@@ -715,6 +729,7 @@
       lyrics: null,
       lyIdx: -1,
       lyShift: 0,
+      pendingLyrics: { add: [], col: [] },
       lyEls: [],
       lyricsOn: false,
       lyUserScrollUntil: 0,
@@ -1295,6 +1310,15 @@
         const nudge = (d) => { this.lyShift = Math.round((this.lyShift + d) * 10) / 10; this.applyLyShift(); };
         document.getElementById('ly-earlier').onclick = () => nudge(0.5);
         document.getElementById('ly-later').onclick = () => nudge(-0.5);
+        document.getElementById('track-lyrics-multi').addEventListener('change', async (e) => {
+          this.pendingLyrics.add = await this.readLyricsFiles(e.target.files);
+          this.refreshAddLyricsPreview();
+        });
+        document.getElementById('track-audio-file').addEventListener('change', () => this.refreshAddLyricsPreview());
+        document.getElementById('col-lyrics-files').addEventListener('change', async (e) => {
+          this.pendingLyrics.col = await this.readLyricsFiles(e.target.files);
+          this.refreshColLyricsPreview();
+        });
         ['wheel', 'touchmove'].forEach(ev => document.getElementById('full-lyrics').addEventListener(ev, () => { this.lyUserScrollUntil = Date.now() + 3000; }, { passive: true }));
         document.getElementById('track-cover-file').addEventListener('change', (e) => {
           const file = e.target.files && e.target.files[0];
@@ -1588,6 +1612,10 @@
         }
         this.renderAltCovers();
         document.getElementById('btn-delete-col-modal').style.display = id ? '' : 'none';
+        this.pendingLyrics.col = [];
+        document.getElementById('col-lyrics-files').value = '';
+        document.getElementById('col-lyrics-preview').innerHTML = '';
+        document.getElementById('col-lyrics-wrap').style.display = id ? '' : 'none';
         modal.classList.remove('hidden');
       },
 
@@ -1635,6 +1663,15 @@
           col.desc = desc;
           if (this.tempCroppedImageBase64) col.cover = this.tempCroppedImageBase64;
           col.covers = [...this.tempCollectionCovers];
+          if (this.pendingLyrics.col.length) {
+            const { map } = this.matchLyrics(this.pendingLyrics.col, this.colLyricsItems());
+            map.forEach((f, tid) => {
+              const tr = this.data.tracks.find(t => t.id === tid);
+              if (tr) { tr.lyrics = f.text.trim(); delete tr.lyricsShift; }
+            });
+            const cur = this.queue[this.queueIndex];
+            if (cur && map.has(cur.id)) this.setLyrics(this.data.tracks.find(t => t.id === cur.id));
+          }
         } else {
           this.data.collections.push({
             id: uid('col'),
@@ -1689,6 +1726,10 @@
         document.getElementById('track-credits-input').value = t ? this.creditsToText(t.credits) : '';
         document.getElementById('track-lyrics-input').value = t ? (t.lyrics || '') : '';
         this.updateLyricsStatus();
+        this.pendingLyrics.add = [];
+        document.getElementById('track-lyrics-multi').value = '';
+        document.getElementById('lyrics-match-preview').innerHTML = '';
+        document.getElementById('track-lyrics-multi-wrap').style.display = t ? 'none' : '';
         document.getElementById('track-audio-file').value = '';
         document.getElementById('track-cover-file').value = '';
         this.tempTrackCover = t ? (t.cover || null) : null;
@@ -1734,6 +1775,9 @@
           const cur = this.queue[this.queueIndex];
           if (cur && cur.id === editing.id) { this.updatePlayerMeta(editing); this.setLyrics(editing); }
         } else {
+          const lyMatch = this.pendingLyrics.add.length
+            ? this.matchLyrics(this.pendingLyrics.add, [...files].map((f, k) => ({ key: k, title: f.name.replace(/\.[^/.]+$/, '') }))).map
+            : new Map();
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
             const id = uid('track');
@@ -1745,7 +1789,8 @@
               break;
             }
             const finalTitle = (files.length === 1 && title) ? title : file.name.replace(/\.[^/.]+$/, "");
-            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', description, credits, cover: this.tempTrackCover || null, ...(files.length === 1 && lyrics ? { lyrics } : {}) });
+            const lyr = (files.length === 1 && lyrics) ? lyrics : (lyMatch.get(i) ? lyMatch.get(i).text.trim() : '');
+            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, bpm: bpm || '---', key: key || '---', description, credits, cover: this.tempTrackCover || null, ...(lyr ? { lyrics: lyr } : {}) });
           }
         }
 
@@ -1766,6 +1811,102 @@
             artwork: (t.cover || (col && col.cover)) ? [{ src: t.cover || col.cover, sizes: '500x500', type: 'image/jpeg' }] : []
           });
         } catch (_) {}
+      },
+
+      async readLyricsFiles(fileList) {
+        const out = [];
+        for (const f of fileList) {
+          const buf = await f.arrayBuffer();
+          let text;
+          try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+          catch (_) { text = new TextDecoder('windows-1252').decode(buf); }
+          text = text.replace(/^\uFEFF/, '');
+          const ti = (text.match(/^\s*\[ti:\s*([^\]]*)\]/im) || [])[1] || '';
+          out.push({ name: f.name, text, ti });
+        }
+        return out;
+      },
+
+      lyNorm(str) {
+        return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+          .replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/&/g, ' and ')
+          .replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+      },
+
+      // separa il numero di traccia (all'inizio, o in mezzo tipo "Artist - Album - 01 - Title") dal nome
+      lySplit(raw) {
+        const base = (raw || '').replace(/\.[^./\\]+$/, '').replace(/_/g, ' ').trim();
+        let m = base.match(/^[\[(]?(\d{1,3})(?!\d)[\])]?\s*[-–.)]*\s*(.*)$/);
+        if (!m) m = base.match(/\s[-–]\s(\d{1,3})(?!\d)\s*[-–.)]*\s+(.+)$/);
+        return { num: m ? parseInt(m[1], 10) : null, name: this.lyNorm(m ? m[2] : base), full: this.lyNorm(base) };
+      },
+
+      lyDice(a, b) {
+        if (!a || !b) return 0;
+        if (a === b) return 1;
+        const grams = (str) => { const t = str.replace(/\s/g, ''), m = new Map(); for (let i = 0; i < t.length - 1; i++) { const k = t.slice(i, i + 2); m.set(k, (m.get(k) || 0) + 1); } return m; };
+        const A = grams(a), B = grams(b);
+        let inter = 0, na = 0, nb = 0;
+        A.forEach(v => { na += v; });
+        B.forEach(v => { nb += v; });
+        A.forEach((v, k) => { if (B.has(k)) inter += Math.min(v, B.get(k)); });
+        return na + nb ? (2 * inter) / (na + nb) : 0;
+      },
+
+      lyScore(f, t) {
+        const sim = (n) => {
+          if (!n || !t.name) return 0;
+          if (n === t.name) return 1;
+          if (t.name.length >= 3 && n.includes(t.name)) return 0.92;
+          if (n.length >= 3 && t.name.includes(n)) return 0.85;
+          return this.lyDice(n, t.name);
+        };
+        let sc = Math.max(sim(f.name), sim(f.full), sim(f.ti));
+        if (f.num != null && t.num != null) sc += f.num === t.num ? 0.45 : -0.25;
+        return sc;
+      },
+
+      // abbina file .lrc e tracce 1:1: stesso numero di traccia, oppure nome simile (anche dal tag [ti:] del file)
+      matchLyrics(files, items) {
+        const F = files.map(f => ({ f, ...this.lySplit(f.name), ti: this.lyNorm(f.ti) }));
+        const T = items.map(it => ({ it, ...this.lySplit(it.title) }));
+        const pairs = [];
+        F.forEach((fx, i) => T.forEach((tx, j) => {
+          const sc = this.lyScore(fx, tx);
+          if (sc >= 0.6 || (fx.num != null && fx.num === tx.num)) pairs.push([sc, i, j]);
+        }));
+        pairs.sort((a, b) => b[0] - a[0]);
+        const usedF = new Set(), usedT = new Set(), map = new Map();
+        for (const [, i, j] of pairs) {
+          if (usedF.has(i) || usedT.has(j)) continue;
+          usedF.add(i); usedT.add(j);
+          map.set(T[j].it.key, F[i].f);
+        }
+        return { map, unmatched: F.filter((_, i) => !usedF.has(i)).map(x => x.f) };
+      },
+
+      renderLyricsPreview(el, files, items) {
+        el.innerHTML = '';
+        if (!files.length) return;
+        const row = (txt, cls) => { const d = document.createElement('div'); d.textContent = txt; if (cls) d.className = cls; el.appendChild(d); };
+        if (!items.length) { row('No tracks to match against yet.', 'bad'); return; }
+        const { map, unmatched } = this.matchLyrics(files, items);
+        row(`Matched ${map.size} of ${files.length} files`, 'sum');
+        items.forEach(it => { const f = map.get(it.key); if (f) row(`${it.title} ← ${f.name}${it.hasLyrics ? ' (replaces existing)' : ''}`); });
+        unmatched.forEach(f => row(`No match: ${f.name}`, 'bad'));
+      },
+
+      refreshAddLyricsPreview() {
+        const items = [...document.getElementById('track-audio-file').files].map((f, i) => ({ key: i, title: f.name.replace(/\.[^/.]+$/, '') }));
+        this.renderLyricsPreview(document.getElementById('lyrics-match-preview'), this.pendingLyrics.add, items);
+      },
+
+      colLyricsItems() {
+        return this.data.tracks.filter(t => t.collectionId === this.editingCollectionId).map(t => ({ key: t.id, title: t.title, hasLyrics: !!t.lyrics }));
+      },
+
+      refreshColLyricsPreview() {
+        this.renderLyricsPreview(document.getElementById('col-lyrics-preview'), this.pendingLyrics.col, this.colLyricsItems());
       },
 
       parseLyrics(raw) {
