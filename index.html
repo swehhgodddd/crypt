@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
+  <script>try{var _s=localStorage.getItem('crypt_skin');if(_s&&_s!=='classic')document.documentElement.setAttribute('data-skin',_s);}catch(e){}</script>
   <style>
     :root { --fg:#fff; --mute:#8c8c8c; --line:rgba(255,255,255,.14); --line-hi:rgba(255,255,255,.55); --soft:rgba(255,255,255,.06); --accent:#ffffff; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif; }
@@ -117,8 +118,6 @@
     .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,.92); border-top: 1px solid var(--line); display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
     .bottom-nav-btn { flex: 1; background: none; border: none; color: var(--mute); padding: 16px 0; font-size: 13px; font-weight: 600; cursor: pointer; transition: color .15s; }
     .bottom-nav-btn.active { color: #fff; }
-    .btn-reorder { width: 28px; height: 28px; background: none; border: 1px solid var(--line); color: var(--mute); border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: color .15s, border-color .15s; }
-    .btn-reorder:hover { color: #fff; border-color: #fff; }
 
     /* Schermata player a tutto schermo */
     #full-player { position: fixed; inset: 0; z-index: 60; background: #000; overflow: hidden; transform: translateY(100%); visibility: hidden; transition: transform .45s cubic-bezier(.2,.8,.2,1), visibility 0s .45s; }
@@ -226,6 +225,52 @@
     .queue-drag-handle:active { cursor: grabbing; color: #fff; }
     .queue-track-info { flex: 1; min-width: 0; pointer-events: none; }
 
+    /* ===== Skins (Style button): retro media-player looks ===== */
+    html[data-skin] { --fg:#1c1e21; --mute:#565c63; --line:rgba(0,0,0,.28); --line-hi:rgba(0,0,0,.6); --soft:rgba(0,0,0,.09); --btn:linear-gradient(#fdfdfd,#d4d6d9 49%,#bfc2c6 51%,#e6e7e9); --brush:repeating-linear-gradient(90deg,rgba(255,255,255,.16) 0 1px,rgba(0,0,0,.035) 1px 3px); --lcd-glow:none; }
+    html[data-skin=quartz] { --chassis:linear-gradient(#e9eaec,#b7b9bd); --lcd:linear-gradient(#f3fbe4,#dcefc3); --lcd-fg:#1f2a14; --acc:#2563c9; --ink:#111; }
+    html[data-skin=aimp] { --chassis:linear-gradient(#d3dde8,#9db0c5); --lcd:linear-gradient(#1f3d66,#112a4a); --lcd-fg:#e8f2ff; --acc:#2f74c8; --ink:#1f4f8f; }
+    html[data-skin=winamp] { --chassis:linear-gradient(#e4e6e4,#bcc0bd); --lcd:linear-gradient(#aabca7,#91a58f); --lcd-fg:#2c392a; --acc:#1d2fb5; --ink:#1d2fb5; }
+    html[data-skin=amber] { --chassis:linear-gradient(#e8e8e8,#b2b2b5); --lcd:linear-gradient(#3b2306,#1d1002); --lcd-fg:#ffb53a; --lcd-glow:0 0 6px rgba(255,170,40,.75); --acc:#ff9a1a; --ink:#c05a00; }
+    html[data-skin] body { background: var(--brush), var(--chassis); background-attachment: fixed; color: var(--fg); }
+    html[data-skin] * { font-family: "Lucida Grande","Segoe UI",Tahoma,Verdana,sans-serif; }
+    html[data-skin] :focus-visible { outline-color: var(--acc); }
+    html[data-skin] :is(.display,.detail-title,.full-title) { letter-spacing: -.02em; }
+    html[data-skin] :is(header,.bottom-nav,#global-player) { background: linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0) 60%), var(--brush), var(--chassis); border-color: rgba(0,0,0,.45); box-shadow: inset 0 1px 0 #fff, 0 1px 0 rgba(0,0,0,.25); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    html[data-skin] .bottom-nav-btn { color: var(--mute); }
+    html[data-skin] .bottom-nav-btn.active { color: var(--lcd-fg); background: var(--lcd); box-shadow: inset 0 2px 5px rgba(0,0,0,.5); text-shadow: var(--lcd-glow); }
+    html[data-skin] .btn { background: var(--btn); color: #1c1e21; border: 1px solid #6f7378; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.35); text-shadow: 0 1px 0 rgba(255,255,255,.8); }
+    html[data-skin] .btn:hover { filter: brightness(1.06); border-color: #4a4e53; }
+    html[data-skin] .btn:active { filter: brightness(.92); box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+    html[data-skin] .btn-quiet { background: none; box-shadow: none; border-color: transparent; text-shadow: none; color: var(--mute); }
+    html[data-skin] .btn-filter { color: var(--fg); }
+    html[data-skin] .btn-filter.active { background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); box-shadow: inset 0 2px 4px rgba(0,0,0,.45); }
+    html[data-skin] :is(.btn-white,.btn-play) { background: var(--btn); color: var(--ink); border: 1px solid #6f7378; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,.4); }
+    html[data-skin] .btn-ctrl { color: var(--fg); }
+    html[data-skin] .btn-ctrl.active::after { background: var(--acc); }
+    html[data-skin] :is([style*="color:#fff"],[style*="color: #fff"]):not(#full-player *) { color: var(--fg) !important; }
+    html[data-skin] [style*="#8c8c8c"] { color: var(--mute) !important; }
+    html[data-skin] .modal-overlay { background: rgba(20,24,30,.55); }
+    html[data-skin] .modal-box { background: var(--brush), var(--chassis); border-color: #6f7378; box-shadow: inset 0 1px 0 #fff, 0 8px 30px rgba(0,0,0,.5); }
+    html[data-skin] .input-field { background: var(--lcd); color: var(--lcd-fg); border: 1px solid rgba(0,0,0,.55); border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,.4); text-shadow: var(--lcd-glow); }
+    html[data-skin] .input-field::placeholder { color: var(--lcd-fg); opacity: .5; }
+    html[data-skin] :is(.card-cover,.detail-cover) { border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 2px 7px rgba(0,0,0,.4); }
+    html[data-skin] .track-row:hover, html[data-skin] .menu-row:hover { background: rgba(255,255,255,.4); }
+    html[data-skin] .track-row.is-active { background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
+    html[data-skin] .tag { background: var(--lcd); color: var(--lcd-fg); border: 1px solid rgba(0,0,0,.5); border-radius: 3px; font-family: Consolas,"Courier New",monospace; text-shadow: var(--lcd-glow); }
+    html[data-skin] .tag-match { background: var(--acc); color: #fff; text-shadow: none; }
+    html[data-skin] .player-wave { background: var(--lcd); border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,.45); padding: 2px 6px; }
+    html[data-skin] .player-wave, html[data-skin] .player-wave :is(.btn-ctrl,#player-time,#player-duration) { color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
+    html[data-skin] :is(#player-time,#player-duration,#full-time,#full-duration) { font-family: Consolas,"Courier New",monospace; }
+    html[data-skin] .queue-row.is-current { border-color: var(--acc); background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
+    html[data-skin] .queue-row.is-drop-target { border-color: var(--acc); background: rgba(255,255,255,.4); }
+    html[data-skin] #full-player { --fg:#fff; --mute:#bdbdbd; --line:rgba(255,255,255,.14); --soft:rgba(255,255,255,.06); color: #fff; }
+
+    /* Riordino tracce nell'Edit della playlist (stesso linguaggio della coda) */
+    .order-list { display: flex; flex-direction: column; gap: 6px; max-height: 38vh; overflow-y: auto; overscroll-behavior: contain; }
+    .order-row { cursor: default; padding: 6px 10px; justify-content: flex-start; }
+    .order-row:hover { background: transparent; }
+    .order-num { flex: 0 0 24px; text-align: right; font-size: 12px; color: var(--mute); font-variant-numeric: tabular-nums; }
+
     /* Stili per la barra di ricerca e i filtri */
     .btn-filter { background: transparent; color: var(--mute); border-color: var(--line); flex-shrink: 0; padding: 6px 12px; }
     .btn-filter:hover { border-color: var(--line-hi); color: #fff; }
@@ -262,6 +307,7 @@
       <div class="logo-text">Crypt.</div>
     </div>
     <div class="btn-group">
+      <button id="btn-style" class="btn" title="Change the look of the app">Style</button>
       <button id="btn-export" class="btn" title="Export Backup">Backup</button>
       <button id="btn-import-trigger" class="btn" title="Import Backup">Import</button>
       <input type="file" id="import-file-input" accept=".json" style="display:none">
@@ -486,6 +532,17 @@
     </div>
   </div>
 
+  <!-- MODAL STYLE -->
+  <div id="modal-style" class="modal-overlay hidden">
+    <div class="modal-box info-box bottom-sheet">
+      <div class="info-head">
+        <div class="section-title" style="font-size:20px;">Style</div>
+        <button class="btn-ctrl" onclick="document.getElementById('modal-style').classList.add('hidden')">✕</button>
+      </div>
+      <div id="style-list" style="display:flex; flex-direction:column; gap:4px; margin-top:12px;"></div>
+    </div>
+  </div>
+
   <!-- MODAL ADD TO PLAYLIST -->
   <div id="modal-add-to-playlist" class="modal-overlay hidden">
     <div class="modal-box info-box bottom-sheet">
@@ -518,6 +575,10 @@
             <button type="button" id="btn-remove-pl-cover" class="btn btn-quiet" style="margin-top:6px; padding-left:0;">Remove cover</button>
           </div>
         </div>
+      </div>
+      <div id="pl-order-wrap" style="display:none;">
+        <label class="label">Track order (drag the handle to reorder)</label>
+        <div id="pl-order-list" class="order-list"></div>
       </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
         <button id="btn-cancel-pl" class="btn" onclick="document.getElementById('modal-playlist').classList.add('hidden')">Cancel</button>
@@ -722,6 +783,7 @@
       cropTarget: 'collection',
       editingPlaylistId: null,
       tempPlaylistCover: null,
+      tempPlaylistOrder: null,
       removePlaylistCover: false,
       tempCroppedImageBase64: null,
       tempCollectionCovers: [],
@@ -768,6 +830,7 @@
         try { await this.migrateLegacyAudio(); } catch (err) { console.warn('Audio migration:', err); }
 
         this.initWaveSurfer();
+        this.applySkin(this.savedSkin(), false);
         this.bindEvents();
         this.render();
         this.updateStorageInfo();
@@ -966,14 +1029,45 @@
         this.loadTrack(this.queue[i]);
       },
 
+      SKINS: [
+        { id: 'classic', name: 'Classic', sub: 'Black, minimal', chip: '#000', wave: { waveColor: '#3a3a3a', progressColor: '#ffffff', cursorColor: '#ffffff' } },
+        { id: 'quartz', name: 'Quartz', sub: 'Brushed aluminium, pale green LCD', chip: 'linear-gradient(#e9eaec,#b7b9bd 60%,#dcefc3 60%)', wave: { waveColor: '#8a9a78', progressColor: '#2563c9', cursorColor: '#2563c9' } },
+        { id: 'aimp', name: 'Aimp', sub: 'Steel blue, navy LCD', chip: 'linear-gradient(#d3dde8,#9db0c5 60%,#1f3d66 60%)', wave: { waveColor: '#4a6a96', progressColor: '#7ec0ff', cursorColor: '#7ec0ff' } },
+        { id: 'winamp', name: 'Winamp', sub: 'Grey-green LCD, blue accents', chip: 'linear-gradient(#e4e6e4,#bcc0bd 60%,#aabca7 60%)', wave: { waveColor: '#6f826c', progressColor: '#1d2fb5', cursorColor: '#1d2fb5' } },
+        { id: 'amber', name: 'Amber', sub: 'Silver with a glowing amber LCD', chip: 'linear-gradient(#e8e8e8,#b2b2b5 60%,#ff9a1a 60%)', wave: { waveColor: '#7a5420', progressColor: '#ffb53a', cursorColor: '#ffb53a' } }
+      ],
+      savedSkin() { try { return localStorage.getItem('crypt_skin') || 'classic'; } catch (_) { return 'classic'; } },
+      applySkin(id, save = true) {
+        const sk = this.SKINS.find(x => x.id === id) || this.SKINS[0];
+        if (sk.id === 'classic') document.documentElement.removeAttribute('data-skin');
+        else document.documentElement.setAttribute('data-skin', sk.id);
+        if (save) { try { localStorage.setItem('crypt_skin', sk.id); } catch (_) {} }
+        if (this.wavesurfer && this.wavesurfer.setOptions) this.wavesurfer.setOptions(sk.wave);
+      },
+      openStyleModal() {
+        const cur = this.savedSkin();
+        const list = document.getElementById('style-list');
+        list.innerHTML = '';
+        this.SKINS.forEach(sk => {
+          const row = document.createElement('div');
+          row.className = 'menu-row';
+          row.innerHTML = `<span style="width:38px; height:24px; flex-shrink:0; border-radius:5px; border:1px solid rgba(128,128,128,.7); background:${sk.chip};"></span><span style="flex:1; min-width:0;"><span style="display:block; font-weight:600;">${esc(sk.name)}</span><span style="display:block; font-size:12px; color:var(--mute); font-weight:400;">${esc(sk.sub)}</span></span><span>${sk.id === cur ? '✓' : ''}</span>`;
+          row.onclick = () => { this.applySkin(sk.id); document.getElementById('modal-style').classList.add('hidden'); };
+          list.appendChild(row);
+        });
+        document.getElementById('modal-style').classList.remove('hidden');
+      },
+
       toggleShuffle() {
         this.isShuffle = !this.isShuffle;
-        const colShuffBtn = document.getElementById('btn-shuffle-col');
-        if(colShuffBtn) {
-            colShuffBtn.classList.toggle('active', this.isShuffle);
-            colShuffBtn.style.opacity = this.isShuffle ? '1' : '.55';
-            colShuffBtn.style.color = this.isShuffle ? '#fff' : 'inherit';
-        }
+        ['btn-shuffle-col', 'btn-shuffle-pl'].forEach(bid => {
+          const shuffBtn = document.getElementById(bid);
+          if (shuffBtn) {
+            shuffBtn.classList.toggle('active', this.isShuffle);
+            shuffBtn.style.opacity = this.isShuffle ? '1' : '.55';
+            shuffBtn.style.color = this.isShuffle ? '#fff' : 'inherit';
+          }
+        });
         if (this.isShuffle) this.initShufflePool();
       },
 
@@ -1272,6 +1366,7 @@
 
       bindEvents() {
         document.getElementById('btn-logo').onclick = () => this.goHome();
+        document.getElementById('btn-style').onclick = () => this.openStyleModal();
         document.getElementById('nav-home').onclick = () => this.goHome();
 
         document.getElementById('btn-cancel-col').onclick = () => this.closeCollectionModal();
@@ -1437,7 +1532,7 @@
         };
         document.getElementById('info-close').onclick = () => document.getElementById('modal-info').classList.add('hidden');
 
-        const modals = ['modal-info', 'modal-queue', 'modal-player-menu', 'modal-track-menu', 'modal-add-to-playlist'];
+        const modals = ['modal-info', 'modal-queue', 'modal-player-menu', 'modal-track-menu', 'modal-add-to-playlist', 'modal-style'];
         modals.forEach(m => {
           const el = document.getElementById(m);
           if(el) el.addEventListener('click', (e) => { if (e.target.id === m) e.target.classList.add('hidden'); });
@@ -2411,12 +2506,108 @@
         this.editingPlaylistId = pl ? pl.id : null;
         this.tempPlaylistCover = pl ? (pl.cover || null) : null;
         this.removePlaylistCover = false;
+        this.tempPlaylistOrder = pl
+          ? pl.trackIds.map(tid => ({ tid, t: this.data.tracks.find(x => x.id === tid) })).filter(x => x.t).map((x, i) => ({ key: i, tid: x.tid, title: x.t.title }))
+          : [];
         document.getElementById('modal-playlist-title').innerText = pl ? 'Edit playlist' : 'New playlist';
         document.getElementById('pl-title-input').value = pl ? pl.title : '';
         document.getElementById('pl-desc-input').value = pl ? (pl.desc || '') : '';
         document.getElementById('pl-cover-file').value = '';
         this.updatePlaylistCoverPreview();
+        this.renderPlaylistOrder();
         document.getElementById('modal-playlist').classList.remove('hidden');
+      },
+
+      // Lista riordinabile (drag sulla maniglia, oppure frecce su/giù da tastiera). Le modifiche si applicano con Save.
+      renderPlaylistOrder() {
+        const wrap = document.getElementById('pl-order-wrap');
+        const list = document.getElementById('pl-order-list');
+        const order = this.tempPlaylistOrder || [];
+        list.innerHTML = '';
+        wrap.style.display = order.length >= 2 ? '' : 'none';
+        if (order.length < 2) return;
+
+        order.forEach((item, idx) => {
+          const row = document.createElement('div');
+          row.className = 'queue-row order-row';
+          row.dataset.key = item.key;
+          row.innerHTML = `
+            <span class="queue-drag-handle" role="button" tabindex="0" aria-label="Reorder ${esc(item.title)}" title="Drag to reorder">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="8" cy="5" r="1.5"/><circle cx="16" cy="5" r="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/><circle cx="8" cy="19" r="1.5"/><circle cx="16" cy="19" r="1.5"/></svg>
+            </span>
+            <span class="order-num">${idx + 1}</span>
+            <div class="queue-track-info">
+              <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(item.title)}</div>
+            </div>
+          `;
+
+          const handle = row.querySelector('.queue-drag-handle');
+          handle.addEventListener('pointerdown', e => {
+            if (e.button !== undefined && e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const draggedKey = item.key;
+            let targetKey = draggedKey;
+            let lastX = e.clientX, lastY = e.clientY, raf = 0;
+            row.classList.add('is-dragging');
+
+            const updateTarget = () => {
+              const under = document.elementFromPoint(lastX, lastY);
+              const target = under && under.closest ? under.closest('.order-row') : null;
+              list.querySelectorAll('.order-row').forEach(el => el.classList.remove('is-drop-target'));
+              if (target && list.contains(target)) {
+                targetKey = Number(target.dataset.key);
+                if (targetKey !== draggedKey) target.classList.add('is-drop-target');
+              }
+            };
+            // auto-scroll quando si trascina vicino al bordo alto/basso della lista (playlist lunghe)
+            const tick = () => {
+              const r = list.getBoundingClientRect();
+              const edge = 40;
+              if (lastY < r.top + edge) list.scrollTop -= Math.max(2, (r.top + edge - lastY) / 3);
+              else if (lastY > r.bottom - edge) list.scrollTop += Math.max(2, (lastY - (r.bottom - edge)) / 3);
+              updateTarget();
+              raf = requestAnimationFrame(tick);
+            };
+            const onMove = ev => { lastX = ev.clientX; lastY = ev.clientY; };
+            const onUp = () => {
+              cancelAnimationFrame(raf);
+              document.removeEventListener('pointermove', onMove);
+              document.removeEventListener('pointerup', onUp);
+              document.removeEventListener('pointercancel', onUp);
+              const from = order.findIndex(o => o.key === draggedKey);
+              const to = order.findIndex(o => o.key === targetKey);
+              if (from >= 0 && to >= 0 && from !== to) {
+                const [moved] = order.splice(from, 1);
+                order.splice(to, 0, moved);
+              }
+              const keep = list.scrollTop;
+              this.renderPlaylistOrder();
+              document.getElementById('pl-order-list').scrollTop = keep;
+            };
+
+            document.addEventListener('pointermove', onMove, { passive: true });
+            document.addEventListener('pointerup', onUp, { once: true });
+            document.addEventListener('pointercancel', onUp, { once: true });
+            raf = requestAnimationFrame(tick);
+          });
+          handle.addEventListener('keydown', e => {
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            e.preventDefault();
+            const from = order.findIndex(o => o.key === item.key);
+            const to = from + (e.key === 'ArrowUp' ? -1 : 1);
+            if (to < 0 || to >= order.length) return;
+            const [moved] = order.splice(from, 1);
+            order.splice(to, 0, moved);
+            const keep = list.scrollTop;
+            this.renderPlaylistOrder();
+            const l2 = document.getElementById('pl-order-list');
+            l2.scrollTop = keep;
+            const h = l2.querySelector(`[data-key="${item.key}"] .queue-drag-handle`);
+            if (h) { h.focus(); h.scrollIntoView({ block: 'nearest' }); }
+          });
+          list.appendChild(row);
+        });
       },
 
       updatePlaylistCoverPreview() {
@@ -2438,6 +2629,12 @@
           editing.desc = desc;
           if (this.removePlaylistCover) delete editing.cover;
           else if (this.tempPlaylistCover) editing.cover = this.tempPlaylistCover;
+          if (this.tempPlaylistOrder && this.tempPlaylistOrder.length) {
+            const newOrder = this.tempPlaylistOrder.map(o => o.tid);
+            const rest = editing.trackIds.slice();
+            newOrder.forEach(tid => { const i = rest.indexOf(tid); if (i >= 0) rest.splice(i, 1); });
+            editing.trackIds = [...newOrder, ...rest];
+          }
         } else {
           this.data.playlists.push({ id: uid('pl'), title, desc, trackIds: [], cover: this.tempPlaylistCover || null });
         }
@@ -2505,6 +2702,9 @@
               <button id="btn-play-pl" class="btn btn-white" style="width: 48px; height: 48px; border-radius: 50%; padding: 0; display:flex; align-items:center; justify-content:center;">
                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
               </button>
+              <button id="btn-shuffle-pl" class="btn-ctrl ${this.isShuffle ? 'active' : ''}" style="width: 48px; height: 48px; opacity: ${this.isShuffle ? '1' : '.55'}; color: ${this.isShuffle ? '#fff' : 'inherit'};" title="Toggle Shuffle">
+                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+              </button>
               <button id="btn-delete-pl" class="btn" style="border-color:#ff4d4d; color:#ff4d4d; display: ${isFav ? 'none' : 'block'};">Delete Playlist</button>
             </div>
           </div>
@@ -2514,6 +2714,7 @@
           </div>
         `;
         this.bindCoverZoom(headerEl.querySelector('.detail-cover'), pl.cover);
+        document.getElementById('btn-shuffle-pl').onclick = () => this.toggleShuffle();
         document.getElementById('btn-export-pl-head').onclick = () => this.exportPlaylist(pl.id);
         document.getElementById('btn-edit-pl-head').onclick = () => this.openPlaylistModal(pl.id);
 
@@ -2563,16 +2764,8 @@
         const item = document.createElement('div');
         item.className = 'track-row' + (isCurrent ? ' is-active' : '');
         
-        const reorderBtns = isPlaylistView ? `
-          <div style="display:flex; flex-direction:column; gap:2px; margin-right:8px;">
-            <button class="btn-reorder" onclick="app.moveTrack('${playlistId}', ${index}, -1)">▲</button>
-            <button class="btn-reorder" onclick="app.moveTrack('${playlistId}', ${index}, 1)">▼</button>
-          </div>
-        ` : '';
-
         item.innerHTML = `
           <div class="track-meta">
-            ${reorderBtns}
             <div style="width:38px; height:38px; flex-shrink:0; border-radius:3px; background:var(--soft) ${t.cover ? `url("${t.cover}") center/cover` : ''}; display:flex; align-items:center; justify-content:center; color:var(--mute);">${t.cover ? '' : '♪'}</div>
             <button class="btn-play btn-play-track">${isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}</button>
             <div>
@@ -2628,19 +2821,6 @@
 
         item.querySelector('.btn-more-track').onclick = () => this.openTrackMenu(t, isPlaylistView ? { playlistId, index } : null);
         return item;
-      },
-
-      async moveTrack(playlistId, index, dir) {
-        const pl = this.data.playlists.find(p => p.id === playlistId);
-        if (!pl) return;
-        if (index + dir < 0 || index + dir >= pl.trackIds.length) return;
-        
-        const temp = pl.trackIds[index];
-        pl.trackIds[index] = pl.trackIds[index + dir];
-        pl.trackIds[index + dir] = temp;
-        
-        await this.persistData();
-        this.render();
       },
 
       async removeFromPlaylist(playlistId, index) {
