@@ -123,7 +123,7 @@
     /* Schermata player a tutto schermo */
     #full-player { position: fixed; inset: 0; z-index: 60; background: #000; overflow: hidden; transform: translateY(100%); visibility: hidden; transition: transform .45s cubic-bezier(.2,.8,.2,1), visibility 0s .45s; }
     #full-player.open { transform: none; visibility: visible; transition: transform .45s cubic-bezier(.2,.8,.2,1), visibility 0s; }
-    #full-bg { position: absolute; inset: -60px; background-size: cover; background-position: center; filter: blur(50px) brightness(.55); }
+    #full-bg { position: absolute; inset: -60px; background-size: cover; background-position: center; filter: blur(38px) brightness(.55); }
     .full-shade { position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.25), rgba(0,0,0,.85)); }
     .full-inner { position: relative; height: 100%; max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; padding: max(16px, env(safe-area-inset-top, 0px)) 24px max(28px, env(safe-area-inset-bottom, 0px)); }
     .full-top { display: flex; justify-content: space-between; align-items: center; }
@@ -490,7 +490,7 @@
   <div id="modal-add-to-playlist" class="modal-overlay hidden">
     <div class="modal-box info-box bottom-sheet">
       <div class="info-head">
-        <div class="section-title" style="font-size:20px;">Add to Playlist</div>
+        <div id="atp-title" class="section-title" style="font-size:20px;">Add to Playlist</div>
         <button class="btn-ctrl" onclick="document.getElementById('modal-add-to-playlist').classList.add('hidden')">✕</button>
       </div>
       <div id="atp-list" style="display:flex; flex-direction:column; gap:8px; margin-top:12px; max-height: 50vh; overflow-y:auto;"></div>
@@ -1042,6 +1042,7 @@
 
       openAddToPlaylistModal(track) {
         document.getElementById('modal-track-menu').classList.add('hidden');
+        document.getElementById('atp-title').innerText = 'Add to Playlist';
         const list = document.getElementById('atp-list');
         list.innerHTML = '';
         if (this.data.playlists.length === 0) {
@@ -1063,6 +1064,38 @@
         document.getElementById('modal-add-to-playlist').classList.remove('hidden');
       },
       
+      // Aggiunge in blocco tutte le tracce di una collection a una playlist (nell'ordine di ordinamento attuale, senza duplicati)
+      openAddCollectionToPlaylistModal(colId) {
+        const col = this.data.collections.find(c => c.id === colId);
+        const tracks = this.getCollectionTracks(colId);
+        if (!col || tracks.length === 0) return alert('This collection has no tracks.');
+        document.getElementById('atp-title').innerText = `Add "${col.title}" to Playlist`;
+        const list = document.getElementById('atp-list');
+        list.innerHTML = '';
+        if (this.data.playlists.length === 0) {
+          list.innerHTML = `<div style="color:var(--mute); font-size:13px; text-align:center; padding:20px;">No playlists created yet.</div>`;
+        } else {
+          this.data.playlists.forEach(pl => {
+            const row = document.createElement('div');
+            row.className = 'menu-row';
+            row.innerText = pl.title;
+            row.onclick = async () => {
+              const have = new Set(pl.trackIds);
+              const fresh = tracks.filter(t => !have.has(t.id));
+              fresh.forEach(t => pl.trackIds.push(t.id));
+              await this.persistData();
+              document.getElementById('modal-add-to-playlist').classList.add('hidden');
+              const skipped = tracks.length - fresh.length;
+              if (fresh.length === 0) alert(`All ${tracks.length} tracks were already in ${pl.title}`);
+              else if (skipped === 0) alert(`Added ${fresh.length} tracks to ${pl.title}`);
+              else alert(`Added ${fresh.length} tracks to ${pl.title} (${skipped} already there)`);
+            };
+            list.appendChild(row);
+          });
+        }
+        document.getElementById('modal-add-to-playlist').classList.remove('hidden');
+      },
+
       // LOGICA CONDIVISIONE TRACCIA
       async shareTrack(track) {
         try {
@@ -2678,6 +2711,7 @@
             </div>
           </div>
           <div style="position: absolute; top: 0; right: 0; display:flex; gap: 8px;">
+            <button id="btn-addpl-col-head" class="btn btn-quiet" title="Add all tracks to a playlist">+ Playlist</button>
             <button id="btn-export-col-head" class="btn btn-quiet">Export</button>
             <button id="btn-edit-col-head" class="btn btn-quiet">Edit</button>
           </div>
@@ -2696,6 +2730,7 @@
           }
         };
         document.getElementById('btn-shuffle-col').onclick = () => this.toggleShuffle();
+        document.getElementById('btn-addpl-col-head').onclick = () => this.openAddCollectionToPlaylistModal(col.id);
         document.getElementById('btn-export-col-head').onclick = () => this.exportCollection(col.id);
         document.getElementById('btn-edit-col-head').onclick = () => this.openCollectionModal(col.id);
 
