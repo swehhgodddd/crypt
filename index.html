@@ -8,7 +8,7 @@
   <!-- PWA Meta Tags -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Unbounded:wght@800;900&family=Anton&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Unbounded:wght@800;900&family=Anton&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -37,6 +37,8 @@
     .btn-group { display: flex; gap: 6px; align-items: center; }
     .btn { background: transparent; border: 1px solid var(--line); color: var(--fg); padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
     .btn:hover { border-color: var(--line-hi); }
+    :root { --btn-font: "Nunito", ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", system-ui, sans-serif; }
+    .btn { font-family: var(--btn-font); }
     .btn-white { background: #fff; color: #000; border-color: #fff; font-weight: 600; }
     .btn-white:hover { background: #d9d9d9; border-color: #d9d9d9; }
     .btn-delete { position: absolute; top: 0; right: 0; color: var(--mute); }
@@ -350,6 +352,83 @@
       html[data-skin=goforit] .track-row::before { font-size: 26px; }
       html[data-skin=goforit] .btn { padding: 6px 10px; box-shadow: 2px 2px 0 var(--k); }
     }
+
+    /* ===== NOSTALGIA — grana di pellicola, lime e acqua, fascia azzurra 2001 ===== */
+    html[data-skin=nostalgia] { --lime:#86c722; --lime-d:#5b9412; --orange:#e8761e; --sky:#8fd0ec; --teal:#17707a; --fg:#10303f; --mute:#4f7284; --line:rgba(20,100,120,.3); --line-hi:rgba(20,100,120,.7); --soft:rgba(20,120,140,.09); --accent:#e8761e; --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif; }
+    html[data-skin=nostalgia] ::selection { background: var(--orange); color: #fff; }
+    html[data-skin=nostalgia] body { color: var(--fg); background: radial-gradient(120% 55% at 0% 0%,rgba(40,200,170,.3),transparent 62%), radial-gradient(90% 50% at 100% 100%,rgba(143,208,236,.5),transparent 62%), linear-gradient(#f7f9f4,#edf3ee); background-attachment: fixed; }
+    html[data-skin=nostalgia] body::after { content: ""; position: fixed; inset: 0; z-index: 200; pointer-events: none; opacity: .15; mix-blend-mode: multiply; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .7 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+    html[data-skin=nostalgia] :focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+    html[data-skin=nostalgia] header { background: rgba(250,252,248,.78); border-bottom: 1px solid var(--line-hi); }
+    html[data-skin=nostalgia] .logo-box { display: flex; align-items: flex-start; gap: 2px; }
+    html[data-skin=nostalgia] .logo-box::after { content: "★"; color: var(--orange); font-size: 13px; transform: rotate(14deg); }
+    html[data-skin=nostalgia] .logo-text { font-size: 30px; font-weight: 800; text-transform: lowercase; letter-spacing: -.08em; line-height: 1; color: var(--lime); text-shadow: 0 .05em 0 var(--lime-d); }
+    html[data-skin=nostalgia] .btn { background: rgba(255,255,255,.7); color: var(--fg); border: 1px solid var(--line-hi); border-radius: 3px; font-size: 13px; font-weight: 700; letter-spacing: .01em; padding: 7px 13px; }
+    html[data-skin=nostalgia] .btn:hover { background: #fff; border-color: var(--orange); color: var(--orange); }
+    html[data-skin=nostalgia] .btn-white { background: linear-gradient(#b4e257,#68a914 52%,#5b9412); color: #fff; border: 1px solid #4a7d0c; border-radius: 99px; text-shadow: 0 1px 1px rgba(0,60,0,.55); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 1px 3px rgba(0,60,40,.3); }
+    html[data-skin=nostalgia] .btn-white:hover { background: linear-gradient(#c3ea6c,#74b81c 52%,#639c14); color: #fff; border-color: #4a7d0c; }
+    html[data-skin=nostalgia] .btn-quiet { background: none; border-color: transparent; color: var(--mute); }
+    html[data-skin=nostalgia] .btn-filter.active { background: var(--sky); border-color: var(--teal); color: var(--fg); }
+    html[data-skin=nostalgia] .display { font-size: clamp(54px,14vw,160px); font-weight: 800; text-transform: lowercase; letter-spacing: -.075em; line-height: .86; color: var(--lime); text-shadow: 0 .045em 0 var(--lime-d); margin-bottom: 14px; }
+    html[data-skin=nostalgia] .display::after { content: "★"; display: inline-block; color: var(--orange); text-shadow: none; font-size: .34em; vertical-align: top; margin-left: .06em; transform: rotate(14deg); }
+    html[data-skin=nostalgia] .detail-title { font-weight: 800; text-transform: lowercase; letter-spacing: -.07em; line-height: .9; color: var(--lime); text-shadow: 0 .045em 0 var(--lime-d); }
+    html[data-skin=nostalgia] .section-sub, html[data-skin=nostalgia] .detail-desc { font-family: var(--serif); font-style: italic; font-size: 15px; color: #c4631a; }
+    html[data-skin=nostalgia] #breadcrumb { font-family: var(--serif); font-variant: small-caps; letter-spacing: .08em; }
+    html[data-skin=nostalgia] .grid { gap: 40px 24px; }
+    html[data-skin=nostalgia] :is(.card-cover,.detail-cover) { position: relative; border: 7px solid #fff; border-radius: 1px; background-color: #bcd9d6; box-shadow: 0 6px 18px rgba(0,60,70,.28), 0 0 0 1px rgba(0,60,70,.18); filter: saturate(1.15) contrast(1.04); }
+    html[data-skin=nostalgia] :is(.card-cover,.detail-cover)::after { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; background: linear-gradient(135deg,rgba(0,255,200,.2),transparent 42%,rgba(255,130,60,.16)); }
+    html[data-skin=nostalgia] .card:hover .card-cover { opacity: 1; outline: 2px solid var(--orange); outline-offset: 5px; }
+    html[data-skin=nostalgia] .card-cover { transition: outline-offset .15s; }
+    html[data-skin=nostalgia] .card-title { font-family: var(--serif); font-variant: small-caps; font-weight: 700; font-size: 15px; letter-spacing: .04em; }
+    html[data-skin=nostalgia] .card-desc { font-family: var(--serif); font-style: italic; }
+    html[data-skin=nostalgia] .card-footer { font-size: 10px; letter-spacing: .24em; text-transform: lowercase; color: var(--teal); }
+    html[data-skin=nostalgia] section { counter-reset: tn; }
+    html[data-skin=nostalgia] .track-row { counter-increment: tn; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 10px; border-bottom: 1px dashed var(--line-hi); padding: 10px 8px; }
+    html[data-skin=nostalgia] .track-row:first-child { border-top: 1px dashed var(--line-hi); }
+    html[data-skin=nostalgia] .track-row::before { content: counter(tn,decimal-leading-zero); font-family: var(--serif); font-variant-numeric: oldstyle-nums; font-size: 24px; color: var(--teal); }
+    html[data-skin=nostalgia] .track-row:hover { background: rgba(255,255,255,.6); }
+    html[data-skin=nostalgia] .track-row.is-active { background: var(--sky); box-shadow: inset 5px 0 0 var(--orange); }
+    html[data-skin=nostalgia] .track-row.is-active::before { color: var(--orange); }
+    html[data-skin=nostalgia] .track-meta > div:first-child { border-radius: 1px !important; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,60,70,.35); }
+    html[data-skin=nostalgia] .btn-play { background: linear-gradient(#b4e257,#68a914 52%,#5b9412); color: #fff; border: 1px solid #4a7d0c; box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
+    html[data-skin=nostalgia] .btn-ctrl { color: var(--fg); }
+    html[data-skin=nostalgia] .tag { background: rgba(255,255,255,.65); color: var(--teal); border: 1px solid var(--teal); border-radius: 2px; font-family: var(--serif); font-variant: small-caps; font-size: 12px; letter-spacing: .05em; }
+    html[data-skin=nostalgia] .tag-match { background: var(--orange); border-color: var(--orange); color: #fff; }
+    html[data-skin=nostalgia] #global-player { background: linear-gradient(#a9dcf3,#8fd0ec); color: #0f3a52; border-top: 1px solid #fff; border-bottom: none; backdrop-filter: none; -webkit-backdrop-filter: none; overflow: hidden; --fg: #0f3a52; --mute: #3d6a85; --line: rgba(15,58,82,.3); }
+    html[data-skin=nostalgia] #global-player::before { content: "2001"; position: absolute; right: -6px; bottom: -34px; font-size: 120px; font-weight: 800; letter-spacing: -.06em; line-height: 1; color: rgba(255,255,255,.4); pointer-events: none; }
+    html[data-skin=nostalgia] .player-container { position: relative; z-index: 1; }
+    html[data-skin=nostalgia] #global-player .btn-ctrl { color: #0f3a52; }
+    html[data-skin=nostalgia] #global-player .btn-ctrl.active { color: var(--orange); }
+    html[data-skin=nostalgia] #global-player .btn-ctrl.active::after { background: var(--orange); }
+    html[data-skin=nostalgia] .player-cover { border: 3px solid #fff; border-radius: 1px; box-shadow: 0 2px 6px rgba(0,50,80,.35); }
+    html[data-skin=nostalgia] .player-title { font-family: var(--serif); font-variant: small-caps; font-weight: 700; letter-spacing: .04em; }
+    html[data-skin=nostalgia] .vol-slider::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--orange) var(--v), rgba(15,58,82,.25) var(--v)); }
+    html[data-skin=nostalgia] .vol-slider::-webkit-slider-thumb { background: #fff; border: 1px solid #0f3a52; }
+    html[data-skin=nostalgia] .bottom-nav { background: rgba(250,252,248,.9); border-top: 1px solid var(--line-hi); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+    html[data-skin=nostalgia] .bottom-nav-btn { font-family: var(--serif); font-variant: small-caps; font-size: 15px; letter-spacing: .08em; color: var(--mute); }
+    html[data-skin=nostalgia] .bottom-nav-btn.active { color: var(--orange); box-shadow: inset 0 3px 0 var(--orange); }
+    html[data-skin=nostalgia] .modal-overlay { background: rgba(20,70,90,.4); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    html[data-skin=nostalgia] .modal-box { background: #fbfcf8; color: var(--fg); border: 1px solid var(--line-hi); border-radius: 4px; box-shadow: 0 22px 60px rgba(0,50,70,.38); }
+    html[data-skin=nostalgia] .input-field { background: rgba(255,255,255,.85); color: var(--fg); border: 1px solid var(--line-hi); border-radius: 3px; }
+    html[data-skin=nostalgia] .input-field:focus { border-color: var(--orange); }
+    html[data-skin=nostalgia] .input-field::placeholder { color: var(--mute); }
+    html[data-skin=nostalgia] .menu-row { font-family: var(--serif); font-variant: small-caps; font-size: 17px; letter-spacing: .04em; border-bottom: 1px dashed var(--line-hi); }
+    html[data-skin=nostalgia] .menu-row:hover { background: var(--sky); }
+    html[data-skin=nostalgia] .queue-row { border: 1px solid var(--line-hi); border-radius: 3px; background: rgba(255,255,255,.6); }
+    html[data-skin=nostalgia] .queue-row:hover { background: #fff; }
+    html[data-skin=nostalgia] .queue-row.is-current { background: var(--sky); border-color: var(--teal); box-shadow: inset 4px 0 0 var(--orange); }
+    html[data-skin=nostalgia] .queue-row.is-drop-target { border-color: var(--orange); background: rgba(232,118,30,.14); }
+    html[data-skin=nostalgia] :is([style*="color:#fff"],[style*="color: #fff"]):not(#full-player *) { color: var(--fg) !important; }
+    html[data-skin=nostalgia] [style*="#8c8c8c"] { color: var(--mute) !important; }
+    html[data-skin=nostalgia] #full-player { --fg:#fff; --mute:#bdbdbd; --line:rgba(255,255,255,.18); --soft:rgba(255,255,255,.07); color: #fff; }
+    html[data-skin=nostalgia] #full-player .btn { color: #fff; background: transparent; border-color: rgba(255,255,255,.55); }
+    html[data-skin=nostalgia] #full-player .btn:hover { background: rgba(255,255,255,.16); color: #fff; }
+    @media (max-width: 520px) {
+      html[data-skin=nostalgia] .track-row { grid-template-columns: 30px 1fr auto; gap: 8px; }
+      html[data-skin=nostalgia] .track-row::before { font-size: 20px; }
+      html[data-skin=nostalgia] .logo-text { font-size: 26px; }
+      html[data-skin=nostalgia] #global-player::before { font-size: 90px; bottom: -24px; }
+    }
     @media (prefers-reduced-motion: reduce) { .holo-stage, .holo-img.swap { animation: none; } }
     textarea.input-field { resize: vertical; min-height: 76px; line-height: 1.4; }
 
@@ -380,44 +459,44 @@
     .queue-track-info { flex: 1; min-width: 0; pointer-events: none; }
 
     /* ===== Skins (Style button): retro media-player looks ===== */
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) { --fg:#1c1e21; --mute:#565c63; --line:rgba(0,0,0,.28); --line-hi:rgba(0,0,0,.6); --soft:rgba(0,0,0,.09); --btn:linear-gradient(#fdfdfd,#d4d6d9 49%,#bfc2c6 51%,#e6e7e9); --brush:repeating-linear-gradient(90deg,rgba(255,255,255,.16) 0 1px,rgba(0,0,0,.035) 1px 3px); --lcd-glow:none; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) { --fg:#1c1e21; --mute:#565c63; --line:rgba(0,0,0,.28); --line-hi:rgba(0,0,0,.6); --soft:rgba(0,0,0,.09); --btn:linear-gradient(#fdfdfd,#d4d6d9 49%,#bfc2c6 51%,#e6e7e9); --brush:repeating-linear-gradient(90deg,rgba(255,255,255,.16) 0 1px,rgba(0,0,0,.035) 1px 3px); --lcd-glow:none; }
     html[data-skin=quartz] { --chassis:linear-gradient(#e9eaec,#b7b9bd); --lcd:linear-gradient(#f3fbe4,#dcefc3); --lcd-fg:#1f2a14; --acc:#2563c9; --ink:#111; }
     html[data-skin=aimp] { --chassis:linear-gradient(#d3dde8,#9db0c5); --lcd:linear-gradient(#1f3d66,#112a4a); --lcd-fg:#e8f2ff; --acc:#2f74c8; --ink:#1f4f8f; }
     html[data-skin=winamp] { --chassis:linear-gradient(#e4e6e4,#bcc0bd); --lcd:linear-gradient(#aabca7,#91a58f); --lcd-fg:#2c392a; --acc:#1d2fb5; --ink:#1d2fb5; }
     html[data-skin=amber] { --chassis:linear-gradient(#e8e8e8,#b2b2b5); --lcd:linear-gradient(#3b2306,#1d1002); --lcd-fg:#ffb53a; --lcd-glow:0 0 6px rgba(255,170,40,.75); --acc:#ff9a1a; --ink:#c05a00; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) body { background: var(--brush), var(--chassis); background-attachment: fixed; color: var(--fg); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) * { font-family: "Lucida Grande","Segoe UI",Tahoma,Verdana,sans-serif; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) :focus-visible { outline-color: var(--acc); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) :is(.display,.detail-title,.full-title) { letter-spacing: -.02em; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) :is(header,.bottom-nav,#global-player) { background: linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0) 60%), var(--brush), var(--chassis); border-color: rgba(0,0,0,.45); box-shadow: inset 0 1px 0 #fff, 0 1px 0 rgba(0,0,0,.25); backdrop-filter: none; -webkit-backdrop-filter: none; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .bottom-nav-btn { color: var(--mute); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .bottom-nav-btn.active { color: var(--lcd-fg); background: var(--lcd); box-shadow: inset 0 2px 5px rgba(0,0,0,.5); text-shadow: var(--lcd-glow); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .btn { background: var(--btn); color: #1c1e21; border: 1px solid #6f7378; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.35); text-shadow: 0 1px 0 rgba(255,255,255,.8); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .btn:hover { filter: brightness(1.06); border-color: #4a4e53; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .btn:active { filter: brightness(.92); box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .btn-quiet { background: none; box-shadow: none; border-color: transparent; text-shadow: none; color: var(--mute); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .btn-filter { color: var(--fg); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .btn-filter.active { background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); box-shadow: inset 0 2px 4px rgba(0,0,0,.45); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) :is(.btn-white,.btn-play) { background: var(--btn); color: var(--ink); border: 1px solid #6f7378; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,.4); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .btn-ctrl { color: var(--fg); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .btn-ctrl.active::after { background: var(--acc); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) :is([style*="color:#fff"],[style*="color: #fff"]):not(#full-player *) { color: var(--fg) !important; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) [style*="#8c8c8c"] { color: var(--mute) !important; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .modal-overlay { background: rgba(20,24,30,.55); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .modal-box { background: var(--brush), var(--chassis); border-color: #6f7378; box-shadow: inset 0 1px 0 #fff, 0 8px 30px rgba(0,0,0,.5); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .input-field { background: var(--lcd); color: var(--lcd-fg); border: 1px solid rgba(0,0,0,.55); border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,.4); text-shadow: var(--lcd-glow); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .input-field::placeholder { color: var(--lcd-fg); opacity: .5; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) :is(.card-cover,.detail-cover) { border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 2px 7px rgba(0,0,0,.4); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .track-row:hover, html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .menu-row:hover { background: rgba(255,255,255,.4); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .track-row.is-active { background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .tag { background: var(--lcd); color: var(--lcd-fg); border: 1px solid rgba(0,0,0,.5); border-radius: 3px; font-family: Consolas,"Courier New",monospace; text-shadow: var(--lcd-glow); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .tag-match { background: var(--acc); color: #fff; text-shadow: none; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .player-wave { background: var(--lcd); border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,.45); padding: 2px 6px; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .player-wave, html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .player-wave :is(.btn-ctrl,#player-time,#player-duration) { color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) :is(#player-time,#player-duration,#full-time,#full-duration) { font-family: Consolas,"Courier New",monospace; }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .queue-row.is-current { border-color: var(--acc); background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) .queue-row.is-drop-target { border-color: var(--acc); background: rgba(255,255,255,.4); }
-    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]) #full-player { --fg:#fff; --mute:#bdbdbd; --line:rgba(255,255,255,.14); --soft:rgba(255,255,255,.06); color: #fff; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) body { background: var(--brush), var(--chassis); background-attachment: fixed; color: var(--fg); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) * { font-family: "Lucida Grande","Segoe UI",Tahoma,Verdana,sans-serif; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) :focus-visible { outline-color: var(--acc); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) :is(.display,.detail-title,.full-title) { letter-spacing: -.02em; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) :is(header,.bottom-nav,#global-player) { background: linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0) 60%), var(--brush), var(--chassis); border-color: rgba(0,0,0,.45); box-shadow: inset 0 1px 0 #fff, 0 1px 0 rgba(0,0,0,.25); backdrop-filter: none; -webkit-backdrop-filter: none; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .bottom-nav-btn { color: var(--mute); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .bottom-nav-btn.active { color: var(--lcd-fg); background: var(--lcd); box-shadow: inset 0 2px 5px rgba(0,0,0,.5); text-shadow: var(--lcd-glow); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .btn { background: var(--btn); color: #1c1e21; border: 1px solid #6f7378; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.35); text-shadow: 0 1px 0 rgba(255,255,255,.8); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .btn:hover { filter: brightness(1.06); border-color: #4a4e53; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .btn:active { filter: brightness(.92); box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .btn-quiet { background: none; box-shadow: none; border-color: transparent; text-shadow: none; color: var(--mute); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .btn-filter { color: var(--fg); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .btn-filter.active { background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); box-shadow: inset 0 2px 4px rgba(0,0,0,.45); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) :is(.btn-white,.btn-play) { background: var(--btn); color: var(--ink); border: 1px solid #6f7378; box-shadow: inset 0 1px 0 #fff, 0 1px 3px rgba(0,0,0,.4); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .btn-ctrl { color: var(--fg); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .btn-ctrl.active::after { background: var(--acc); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) :is([style*="color:#fff"],[style*="color: #fff"]):not(#full-player *) { color: var(--fg) !important; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) [style*="#8c8c8c"] { color: var(--mute) !important; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .modal-overlay { background: rgba(20,24,30,.55); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .modal-box { background: var(--brush), var(--chassis); border-color: #6f7378; box-shadow: inset 0 1px 0 #fff, 0 8px 30px rgba(0,0,0,.5); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .input-field { background: var(--lcd); color: var(--lcd-fg); border: 1px solid rgba(0,0,0,.55); border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,.4); text-shadow: var(--lcd-glow); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .input-field::placeholder { color: var(--lcd-fg); opacity: .5; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) :is(.card-cover,.detail-cover) { border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 2px 7px rgba(0,0,0,.4); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .track-row:hover, html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .menu-row:hover { background: rgba(255,255,255,.4); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .track-row.is-active { background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .tag { background: var(--lcd); color: var(--lcd-fg); border: 1px solid rgba(0,0,0,.5); border-radius: 3px; font-family: Consolas,"Courier New",monospace; text-shadow: var(--lcd-glow); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .tag-match { background: var(--acc); color: #fff; text-shadow: none; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .player-wave { background: var(--lcd); border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,.45); padding: 2px 6px; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .player-wave, html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .player-wave :is(.btn-ctrl,#player-time,#player-duration) { color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) :is(#player-time,#player-duration,#full-time,#full-duration) { font-family: Consolas,"Courier New",monospace; }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .queue-row.is-current { border-color: var(--acc); background: var(--lcd); color: var(--lcd-fg); text-shadow: var(--lcd-glow); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .queue-row.is-drop-target { border-color: var(--acc); background: rgba(255,255,255,.4); }
+    html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) #full-player { --fg:#fff; --mute:#bdbdbd; --line:rgba(255,255,255,.14); --soft:rgba(255,255,255,.06); color: #fff; }
 
     /* Riordino tracce nell'Edit della playlist (stesso linguaggio della coda) */
     .order-list { display: flex; flex-direction: column; gap: 6px; max-height: 38vh; overflow-y: auto; overscroll-behavior: contain; }
@@ -1187,6 +1266,7 @@
         { id: 'classic', name: 'Classic', sub: 'Black, minimal', chip: '#000', wave: { waveColor: '#3a3a3a', progressColor: '#ffffff', cursorColor: '#ffffff' } },
         { id: 'press', name: 'Press', sub: 'Paper, ink, one hot colour', chip: 'linear-gradient(90deg,#ece7dc 62%,#ff4a1c 62%)', wave: { waveColor: '#5a564d', progressColor: '#ff4a1c', cursorColor: '#ff4a1c' } },
         { id: 'goforit', name: 'Go for it', sub: 'Acid green, electric blue, marker lines', chip: 'linear-gradient(90deg,#00e564 45%,#0b9cff 45% 80%,#0a0a0a 80%)', wave: { waveColor: '#0a5f9e', progressColor: '#0a0a0a', cursorColor: '#ffffff' } },
+        { id: 'nostalgia', name: 'Nostalgia', sub: 'Film grain, lime, aqua and a 2001 sky-blue band', chip: 'linear-gradient(90deg,#86c722 34%,#8fd0ec 34% 67%,#e8761e 67%)', wave: { waveColor: '#6aa7c2', progressColor: '#e8761e', cursorColor: '#e8761e' } },
         { id: 'quartz', name: 'Quartz', sub: 'Brushed aluminium, pale green LCD', chip: 'linear-gradient(#e9eaec,#b7b9bd 60%,#dcefc3 60%)', wave: { waveColor: '#8a9a78', progressColor: '#2563c9', cursorColor: '#2563c9' } },
         { id: 'aimp', name: 'Aimp', sub: 'Steel blue, navy LCD', chip: 'linear-gradient(#d3dde8,#9db0c5 60%,#1f3d66 60%)', wave: { waveColor: '#4a6a96', progressColor: '#7ec0ff', cursorColor: '#7ec0ff' } },
         { id: 'winamp', name: 'Winamp', sub: 'Grey-green LCD, blue accents', chip: 'linear-gradient(#e4e6e4,#bcc0bd 60%,#aabca7 60%)', wave: { waveColor: '#6f826c', progressColor: '#1d2fb5', cursorColor: '#1d2fb5' } },
