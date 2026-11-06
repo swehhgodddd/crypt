@@ -548,6 +548,18 @@
     .stat-row .t { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .stat-row .n { font-variant-numeric: tabular-nums; color: var(--mute); }
     @media (max-width: 420px) { .btn-group { gap: 4px; } .btn-group .btn { padding-left: 10px; padding-right: 10px; } }
+    /* Cover PNG/WebP con trasparenza: niente sfondo, bordo, ombra o angoli arrotondati dietro l'immagine */
+    html :is(.card-cover, .detail-cover, .player-cover).is-alpha {
+      background-color: transparent !important; border: 0 !important; border-radius: 0 !important;
+      box-shadow: none !important; outline: 0 !important; filter: none !important; transform: none !important;
+      background-size: contain !important; background-repeat: no-repeat !important; background-position: center !important;
+    }
+    html[data-skin] :is(.card-cover, .detail-cover, .player-cover).is-alpha::after { display: none !important; }
+    .holo.alpha { box-shadow: none; border-radius: 0; overflow: visible; }
+    .holo.alpha .holo-img { background-color: transparent; background-size: contain; background-repeat: no-repeat; }
+    .holo.alpha :is(.holo-foil, .holo-glare) { -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+    /* Trascinamento di file audio sulla finestra (desktop) */
+    body.drop-hint::after { content: 'Drop audio to upload'; position: fixed; inset: 10px; z-index: 9999; display: flex; align-items: center; justify-content: center; border: 2px dashed #fff; border-radius: 12px; background: rgba(0,0,0,.62); color: #fff; font-size: 18px; font-weight: 600; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -1087,6 +1099,25 @@
       return d ? (thumb ? d.thumb : d.src) : '';
     }
 
+    // Cover con trasparenza: si salvano come WebP/PNG (le opache restano JPEG), quindi il formato dice se c'e' alpha.
+    // Le cover predefinite ('cd:...') non contano: hanno lo sfondo nero incluso.
+    function isAlphaCover(c) { return typeof c === 'string' && /^data:image\/(png|webp)/.test(c); }
+    function canvasHasAlpha(canvas) {
+      try {
+        const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        for (let i = 3; i < d.length; i += 4) if (d[i] < 250) return true;
+      } catch (_) {}
+      return false;
+    }
+    function encodeCanvas(canvas, jpegQuality) {
+      if (canvasHasAlpha(canvas)) {
+        const w = canvas.toDataURL('image/webp', 0.9);
+        return w.indexOf('data:image/webp') === 0 ? w : canvas.toDataURL('image/png');
+      }
+      return canvas.toDataURL('image/jpeg', jpegQuality);
+    }
+    function isAudioFile(f) { return /^audio\//.test(f.type || '') || /\.(mp3|wav|m4a|aac|flac|ogg|oga|opus|aif|aiff|wma)$/i.test(f.name || ''); }
+
     const app = {
       data: { collections: [], tracks: [], playlists: [] },
       currentCollectionId: null,
@@ -1152,9 +1183,76 @@
         this.render();
         this.initBackNav();
         this.updateStorageInfo();
+        this.initIncomingFiles();
       },
 
       audioKey(id) { return 'audio_' + id; },
+
+      // ---- File audio in arrivo: condivisi da un'altra app (Android), "Apri con" (desktop), trascinati sulla finestra ----
+      async takeSharedFiles() {
+        if (!('caches' in window)) return [];
+        const cache = await caches.open('crypt-share-v1');
+        const keys = (await cache.keys()).sort((a, b) => a.url.localeCompare(b.url, undefined, { numeric: true }));
+        const files = [];
+        for (const k of keys) {
+          const res = await cache.match(k);
+          if (!res) continue;
+          const blob = await res.blob();
+          let name = 'track';
+          try { name = decodeURIComponent(res.headers.get('X-File-Name') || '') || 'track'; } catch (_) {}
+          files.push(new File([blob], name, { type: blob.type || res.headers.get('Content-Type') || 'audio/mpeg' }));
+          await cache.delete(k);
+        }
+        return files;
+      },
+
+      receiveFiles(files) {
+        const list = Array.from(files || []);
+        const audio = list.filter(isAudioFile);
+        if (!audio.length) { if (list.length) alert('Only audio files can be uploaded here.'); return; }
+        const modal = document.getElementById('modal-track');
+        if (modal.classList.contains('hidden') || this.editingTrackId) this.openTrackModal();
+        const dt = new DataTransfer();
+        audio.forEach(f => dt.items.add(f));
+        const input = document.getElementById('track-audio-file');
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      },
+
+      async initIncomingFiles() {
+        const hasFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') !== -1);
+        const onInput = (e) => !!(e.target && e.target.closest && e.target.closest('input[type=file]'));
+        let depth = 0;
+        window.addEventListener('dragenter', (e) => { if (!hasFiles(e) || onInput(e)) return; depth++; document.body.classList.add('drop-hint'); });
+        window.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (!depth) document.body.classList.remove('drop-hint'); });
+        window.addEventListener('dragover', (e) => { if (hasFiles(e) && !onInput(e)) e.preventDefault(); });
+        window.addEventListener('drop', (e) => {
+          depth = 0; document.body.classList.remove('drop-hint');
+          if (!hasFiles(e) || onInput(e)) return;
+          e.preventDefault();
+          if (document.querySelector('.modal-overlay:not(.hidden):not(#modal-track)')) return;
+          this.receiveFiles(Array.from(e.dataTransfer.files));
+        });
+
+        // Android: "Condividi" -> Crypt. Il service worker salva i file e ricarica l'app con ?shared=N
+        try {
+          if (new URLSearchParams(location.search).has('shared')) {
+            try { history.replaceState(history.state, '', location.pathname); } catch (_) {}
+            this.receiveFiles(await this.takeSharedFiles());
+          }
+        } catch (err) { console.warn('Shared files:', err); }
+
+        // Desktop (Chrome/Edge, app installata): tasto destro su un file audio -> Apri con Crypt
+        if ('launchQueue' in window) {
+          try {
+            window.launchQueue.setConsumer(async (params) => {
+              const files = [];
+              for (const h of (params.files || [])) { try { files.push(await h.getFile()); } catch (_) {} }
+              this.receiveFiles(files);
+            });
+          } catch (_) {}
+        }
+      },
 
       // ---- Cover predefinite: selettore per playlist e tracce ----
       buildCdPickers() {
@@ -1767,7 +1865,7 @@
         document.getElementById('btn-apply-crop').onclick = () => {
           if (this.cropper) {
             const canvas = this.cropper.getCroppedCanvas({ width: 900, height: 900, imageSmoothingQuality: 'high' });
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.84);
+            const dataUrl = encodeCanvas(canvas, 0.84);
             if (this.cropTarget === 'playlist') {
               this.tempPlaylistCover = dataUrl;
               this.removePlaylistCover = false;
@@ -1816,20 +1914,22 @@
           this.refreshColLyricsPreview();
         });
         ['wheel', 'touchmove'].forEach(ev => document.getElementById('full-lyrics').addEventListener(ev, () => { this.lyUserScrollUntil = Date.now() + 3000; }, { passive: true }));
-        document.getElementById('track-cover-file').addEventListener('change', (e) => {
+        document.getElementById('track-cover-file').addEventListener('change', async (e) => {
           const file = e.target.files && e.target.files[0];
           if (!file) return;
           if (!file.type.startsWith('image/')) { alert('Select a valid image file.'); e.target.value = ''; return; }
-          const reader = new FileReader();
-          reader.onload = () => {
-            this.tempTrackCover = reader.result;
+          try {
+            this.tempTrackCover = await this.prepareImage(file, 900, 0.84);
             this.removeTrackCover = false;
             const preview = document.getElementById('track-cover-preview');
             preview.style.backgroundImage = `url("${this.tempTrackCover}")`;
             preview.textContent = '';
             this.markCdPicker('track-cd-picker', null);
-          };
-          reader.readAsDataURL(file);
+          } catch (err) {
+            console.error('Track cover error:', err);
+            alert('Could not read this image. Try a JPG or PNG.');
+            e.target.value = '';
+          }
         });
         document.getElementById('btn-remove-track-cover').onclick = () => {
           this.tempTrackCover = null;
@@ -1984,8 +2084,7 @@
         this.initVolume();
       },
 
-      async prepareImage(file) {
-        const MAX = 1600;
+      async prepareImage(file, MAX = 1600, quality = 0.9) {
         let source, w, h;
         if (window.createImageBitmap) {
           try {
@@ -2006,7 +2105,7 @@
         canvas.height = Math.round(h * scale);
         canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
         if (source.close) source.close();
-        return canvas.toDataURL('image/jpeg', 0.9);
+        return encodeCanvas(canvas, quality);
       },
 
       async handleCoverPick(input, target) {
@@ -2907,7 +3006,9 @@
       },
 
       openCoverViewer(list) {
-        this.coverList = Array.isArray(list) ? list : [list];
+        const raw = Array.isArray(list) ? list : [list];
+        this.coverRaw = raw;
+        this.coverList = raw.map(c => coverSrc(c));
         this.showCover(0, false);
         document.getElementById('modal-cover').classList.remove('hidden');
         this.holo.start();
@@ -2919,6 +3020,11 @@
         this.coverIndex = ((i % n) + n) % n;
         const img = document.getElementById('holo-img');
         img.style.backgroundImage = `url("${this.coverList[this.coverIndex]}")`;
+        const holoCard = document.getElementById('holo-card');
+        const alpha = isAlphaCover(this.coverRaw[this.coverIndex]);
+        holoCard.classList.toggle('alpha', alpha);
+        if (alpha) holoCard.style.setProperty('--m', `url("${this.coverList[this.coverIndex]}")`);
+        else holoCard.style.removeProperty('--m');
         if (animate) { img.classList.remove('swap'); void img.offsetWidth; img.classList.add('swap'); }
         document.getElementById('holo-nav').classList.toggle('hidden', n < 2);
         document.getElementById('holo-dots').innerHTML = this.coverList.map((_, k) =>
@@ -3027,6 +3133,7 @@
         const trackCover = coverSrc(track.cover || (parentCol && parentCol.cover) || null) || null;
         const coverCss = trackCover ? `url('${trackCover}')` : 'none';
         document.getElementById('player-cover').style.backgroundImage = coverCss;
+        document.getElementById('player-cover').classList.toggle('is-alpha', isAlphaCover(track.cover || (parentCol && parentCol.cover) || null));
         document.getElementById('full-bg').style.backgroundImage = coverCss;
         this.updateMediaSession(track);
         this.setLyrics(track);
@@ -3258,7 +3365,7 @@
 
           card.innerHTML = `
             <div>
-              <div class="card-cover" style="${coverStyle}">${pl.cover ? '' : icona}</div>
+              <div class="card-cover${isAlphaCover(pl.cover) ? ' is-alpha' : ''}" style="${coverStyle}">${pl.cover ? '' : icona}</div>
               <div class="card-title">${esc(pl.title)}</div>
               <div class="card-desc">${esc(pl.desc || 'No description')}</div>
             </div>
@@ -3290,7 +3397,7 @@
           : 'background-image:none; display:flex; align-items:center; justify-content:center; font-size:48px;';
 
         headerEl.innerHTML = `
-          <div class="detail-cover${pl.cover ? ' is-zoomable' : ''}" ${pl.cover ? 'role="button" tabindex="0" aria-label="Enlarge cover"' : ''} style="${coverStyle}">${pl.cover ? '' : icona}</div>
+          <div class="detail-cover${pl.cover ? ' is-zoomable' : ''}${isAlphaCover(pl.cover) ? ' is-alpha' : ''}" ${pl.cover ? 'role="button" tabindex="0" aria-label="Enlarge cover"' : ''} style="${coverStyle}">${pl.cover ? '' : icona}</div>
           <div style="flex:1;">
             <div class="detail-title">${esc(pl.title)}</div>
             <div class="detail-desc">${esc(pl.desc || 'No description')}</div>
@@ -3309,7 +3416,7 @@
             <button id="btn-edit-pl-head" class="btn btn-quiet">Edit</button>
           </div>
         `;
-        this.bindCoverZoom(headerEl.querySelector('.detail-cover'), coverSrc(pl.cover));
+        this.bindCoverZoom(headerEl.querySelector('.detail-cover'), pl.cover);
         document.getElementById('btn-shuffle-pl').onclick = () => this.toggleShuffle();
         document.getElementById('btn-export-pl-head').onclick = () => this.exportPlaylist(pl.id);
         document.getElementById('btn-edit-pl-head').onclick = () => this.openPlaylistModal(pl.id);
@@ -3362,7 +3469,7 @@
         
         item.innerHTML = `
           <div class="track-meta">
-            <div style="width:38px; height:38px; flex-shrink:0; border-radius:3px; background:var(--soft) ${t.cover ? `url('${coverSrc(t.cover, true)}') center/cover` : ''}; display:flex; align-items:center; justify-content:center; color:var(--mute);">${t.cover ? '' : '♪'}</div>
+            <div style="width:38px; height:38px; flex-shrink:0; border-radius:3px; background:${t.cover ? (isAlphaCover(t.cover) ? `transparent url('${coverSrc(t.cover, true)}') center/contain no-repeat` : `var(--soft) url('${coverSrc(t.cover, true)}') center/cover`) : 'var(--soft)'}; display:flex; align-items:center; justify-content:center; color:var(--mute);">${t.cover ? '' : '♪'}</div>
             <button class="btn-play btn-play-track">${isCurrent && this.wavesurfer && this.wavesurfer.isPlaying() ? '⏸' : '▶'}</button>
             <div>
               <div style="font-size:14px; font-weight:600;">${esc(t.title)}</div>
@@ -3445,7 +3552,7 @@
           card.className = 'card';
           card.innerHTML = `
             <div>
-              <div class="card-cover" style="background-image:${col.cover ? `url('${col.cover}')` : 'none'}"></div>
+              <div class="card-cover${isAlphaCover(col.cover) ? ' is-alpha' : ''}" style="background-image:${col.cover ? `url('${col.cover}')` : 'none'}"></div>
               <div class="card-title">${esc(col.title)}</div>
               <div class="card-desc">${esc(col.desc || 'No description')}</div>
             </div>
@@ -3477,7 +3584,7 @@
         document.getElementById('nav-current').innerText = col.title;
         const headerEl = document.getElementById('collection-header-detail');
         headerEl.innerHTML = `
-          <div class="detail-cover${col.cover ? ' is-zoomable' : ''}" ${col.cover ? 'role="button" tabindex="0" aria-label="Enlarge cover"' : ''} style="background-image:${col.cover ? `url('${col.cover}')` : 'none'}"></div>
+          <div class="detail-cover${col.cover ? ' is-zoomable' : ''}${isAlphaCover(col.cover) ? ' is-alpha' : ''}" ${col.cover ? 'role="button" tabindex="0" aria-label="Enlarge cover"' : ''} style="background-image:${col.cover ? `url('${col.cover}')` : 'none'}"></div>
           <div style="flex:1;">
             <div class="detail-title">${esc(col.title)}</div>
             <div class="detail-desc">${esc(col.desc || 'No description')}</div>
