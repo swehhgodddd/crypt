@@ -2357,6 +2357,20 @@
         this.render();
         window.scrollTo(0, 0);
       },
+      async deleteArtistProfile(name) {
+        if (!confirm(`Delete the artist profile "${name}"? The tracks themselves will remain in your library, but this artist will be removed from their artist tags.`)) return;
+        const key = this.artistKey(name);
+        for (const track of this.data.tracks) {
+          const remaining = artistsOf(track).filter(a => this.artistKey(a) !== key);
+          if (remaining.length) track.artist = remaining.join(', ');
+          else delete track.artist;
+        }
+        if (this.data.artists) delete this.data.artists[key];
+        await this.persistData();
+        this.currentArtist = null;
+        this.switchTab('artists');
+        this.renderArtists();
+      },
       renderArtistDetail() {
         const tracks = this.artistTracks(this.currentArtist);
         if (!tracks.length) return this.switchTab('artists');
@@ -2364,37 +2378,103 @@
         const name = artistsOf(tracks[0]).find(a => this.artistKey(a) === k) || this.currentArtist;
         const pc = this.playCounts();
         const nat = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { numeric: true, sensitivity: 'base' });
-        const sorted = [...tracks].sort((a, b) => (pc.get(b.id) || 0) - (pc.get(a.id) || 0) || nat(a.title, b.title));
+        const hasPlayData = tracks.some(t => (pc.get(t.id) || 0) > 0);
+        const sorted = hasPlayData
+          ? [...tracks].sort((a, b) => (pc.get(b.id) || 0) - (pc.get(a.id) || 0) || nat(a.title, b.title))
+          : [...tracks].sort(() => Math.random() - 0.5);
+        const featured = sorted.slice(0, 5);
         const total = tracks.reduce((s, t) => s + (pc.get(t.id) || 0), 0);
         const src = this.artistCover(tracks, false, name);
         const hasPhoto = !!this.artistPhoto(name);
+
+        // Collection e playlist in cui compare almeno una traccia dell'artista.
+        const trackIds = new Set(tracks.map(t => t.id));
+        const collections = this.data.collections.filter(col =>
+          tracks.some(t => t.collectionId === col.id)
+        );
+        const playlists = this.data.playlists.filter(pl =>
+          pl.id !== 'pl_preferiti' && (pl.trackIds || []).some(id => trackIds.has(id))
+        );
+
         document.getElementById('nav-current').innerText = name;
         document.getElementById('artist-header-detail').innerHTML = `
           <div id="artist-avatar" class="detail-cover" role="button" tabindex="0" aria-label="Change artist photo" title="Change photo" style="border-radius:50%; cursor:pointer; ${src ? `background-image:url('${src}');` : ''}"></div>
           <div style="flex:1; min-width:0;">
             <div class="detail-title">${esc(name)}</div>
             <div class="detail-desc">${tracks.length} track${tracks.length > 1 ? 's' : ''} · ${total} play${total === 1 ? '' : 's'}</div>
-            <div style="margin-top:20px;"><button id="btn-play-artist" class="btn btn-white" style="width:48px; height:48px; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center;" title="Play"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button></div>
+            <div style="margin-top:20px;"><button id="btn-play-artist" class="btn btn-white" style="width:48px; height:48px; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center;" title="Play top tracks"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button></div>
           </div>
-          <div style="position:absolute; top:0; right:0; display:flex; gap:8px;">
+          <div style="position:absolute; top:0; right:0; display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
             ${hasPhoto ? '<button id="btn-artist-photo-remove" class="btn btn-quiet">Remove photo</button>' : ''}
             <button id="btn-artist-photo-edit" class="btn btn-quiet">Edit photo</button>
+            <button id="btn-delete-artist" class="btn btn-quiet" style="color:#ff4d4d;">Delete artist</button>
           </div>`;
         const pickPhoto = () => { this.photoArtist = name; document.getElementById('artist-photo-file').click(); };
         document.getElementById('artist-avatar').onclick = pickPhoto;
         document.getElementById('artist-avatar').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickPhoto(); } };
         document.getElementById('btn-artist-photo-edit').onclick = pickPhoto;
+        document.getElementById('btn-delete-artist').onclick = () => this.deleteArtistProfile(name);
         const rm = document.getElementById('btn-artist-photo-remove');
         if (rm) rm.onclick = async () => {
           delete this.data.artists[this.artistKey(name)];
           await this.persistData();
           this.renderArtistDetail();
         };
-        document.getElementById('btn-play-artist').onclick = () => this.playQueue(sorted, sorted[0]);
+        document.getElementById('btn-play-artist').onclick = () => this.playQueue(featured, featured[0]);
+
         const list = document.getElementById('artist-tracks-list');
-        list.innerHTML = '';
+        list.innerHTML = `
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin: 8px 0 14px;">
+            <div class="section-title"> ${hasPlayData ? 'Most played' : 'Selected tracks'} </div>
+            <div style="font-size:11px; color:var(--mute);">${hasPlayData ? 'TOP 5 BY LISTENS' : 'RANDOM SELECTION'}</div>
+          </div>
+          <div id="artist-featured-tracks"></div>
+          <div id="artist-appears-in" style="margin-top:42px;">
+            <div class="section-title" style="margin-bottom:16px;">Appears in</div>
+            <div id="artist-appears-collections"></div>
+            <div id="artist-appears-playlists" style="margin-top:24px;"></div>
+          </div>`;
+        const featuredList = document.getElementById('artist-featured-tracks');
         const cur = this.queue[this.queueIndex];
-        sorted.forEach(t => list.appendChild(this.createTrackElement(t, cur && cur.id === t.id, false)));
+        featured.forEach(t => featuredList.appendChild(this.createTrackElement(t, cur && cur.id === t.id, false)));
+
+        const renderAppearCards = (items, targetId, type) => {
+          const target = document.getElementById(targetId);
+          if (!items.length) {
+            target.innerHTML = '';
+            return;
+          }
+          target.innerHTML = `<div class="label" style="margin-bottom:10px;">${type === 'collection' ? 'COLLECTIONS' : 'PLAYLISTS'}</div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(125px,1fr)); gap:18px 14px;"></div>`;
+          const grid = target.querySelector('.grid');
+          items.forEach(item => {
+            const itemTracks = type === 'collection'
+              ? this.data.tracks.filter(t => t.collectionId === item.id)
+              : this.data.tracks.filter(t => (item.trackIds || []).includes(t.id));
+            const cover = item.cover || (itemTracks.find(t => t.cover) || {}).cover;
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `<div class="card-cover" style="${cover ? `background-image:url('${coverSrc(cover, true)}');` : ''}"></div>
+              <div class="card-title">${esc(item.title)}</div>
+              <div class="card-desc">${itemTracks.filter(t => trackIds.has(t.id)).length} track${itemTracks.filter(t => trackIds.has(t.id)).length === 1 ? '' : 's'} by ${esc(name)}</div>`;
+            card.onclick = () => {
+              if (type === 'collection') this.openCollectionDetail(item.id);
+              else {
+                this.currentPlaylistId = item.id;
+                document.getElementById('view-artist-detail').style.display = 'none';
+                document.getElementById('view-playlists').style.display = 'none';
+                document.getElementById('view-playlist-detail').style.display = 'block';
+                this.renderPlaylistDetail(item.id);
+                window.scrollTo(0, 0);
+              }
+            };
+            grid.appendChild(card);
+          });
+        };
+        renderAppearCards(collections, 'artist-appears-collections', 'collection');
+        renderAppearCards(playlists, 'artist-appears-playlists', 'playlist');
+        if (!collections.length && !playlists.length) {
+          document.getElementById('artist-appears-in').innerHTML += '<div style="color:var(--mute); font-size:13px;">No collections or playlists yet.</div>';
+        }
       },
       async scanArtists() {
         const todo = this.data.tracks.filter(t => !metaVal(t.artist));
