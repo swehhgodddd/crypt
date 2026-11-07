@@ -2341,9 +2341,10 @@
       // ===== Artisti =====
       artistKey(n) { return String(n).trim().toLowerCase(); },
       artistTracks(name) { const k = this.artistKey(name); return this.data.tracks.filter(t => artistsOf(t).some(a => this.artistKey(a) === k)); },
+      artistHidden(name) { const a = (this.data.artists || {})[this.artistKey(name)]; return !!(a && a.hidden); },
       artistList() {
         const m = new Map();
-        for (const t of this.data.tracks) for (const a of artistsOf(t)) { const k = this.artistKey(a); if (!m.has(k)) m.set(k, { name: a, tracks: [] }); m.get(k).tracks.push(t); }
+        for (const t of this.data.tracks) for (const a of artistsOf(t)) { const k = this.artistKey(a); if (this.artistHidden(a)) continue; if (!m.has(k)) m.set(k, { name: a, tracks: [] }); m.get(k).tracks.push(t); }
         return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
       },
       artistPhoto(name) { const a = (this.data.artists || {})[this.artistKey(name)]; return (a && a.image) || ''; },
@@ -2388,14 +2389,10 @@
         window.scrollTo(0, 0);
       },
       async deleteArtistProfile(name) {
-        if (!confirm(`Delete the artist profile "${name}"? The tracks themselves will remain in your library, but this artist will be removed from their artist tags.`)) return;
-        const key = this.artistKey(name);
-        for (const track of this.data.tracks) {
-          const remaining = artistsOf(track).filter(a => this.artistKey(a) !== key);
-          if (remaining.length) track.artist = remaining.join(', ');
-          else delete track.artist;
-        }
-        if (this.data.artists) delete this.data.artists[key];
+        if (!confirm(`Delete the artist profile "${name}"? Only the profile (and its photo) is removed: your tracks keep their artist name.`)) return;
+        // Il profilo viene solo nascosto: i dati delle tracce non si toccano.
+        if (!this.data.artists) this.data.artists = {};
+        this.data.artists[this.artistKey(name)] = { hidden: true };
         await this.persistData();
         this.currentArtist = null;
         this.switchTab('artists');
@@ -2749,7 +2746,10 @@
           }
           Object.assign(editing, { title: title || editing.title, bpm: bpm || '---', key: key || '---', description, credits, lyrics });
           if (!lyrics) delete editing.lyrics;
+          const prevArtists = new Set(artistsOf(editing).map(a => this.artistKey(a)));
           if (artist) editing.artist = artist; else delete editing.artist;
+          // Un artista nascosto torna visibile solo se il suo nome viene aggiunto a mano a questa traccia
+          artistsOf(editing).forEach(a => { const k = this.artistKey(a); if (!prevArtists.has(k) && this.artistHidden(a)) delete this.data.artists[k]; });
           if (this.removeTrackCover) delete editing.cover;
           else if (this.tempTrackCover) editing.cover = this.tempTrackCover;
           const cur = this.queue[this.queueIndex];
@@ -3971,7 +3971,7 @@
 
           if (ctx.artists) {
             this.data.artists = this.data.artists || {};
-            for (const k of Object.keys(ctx.artists)) { const a = ctx.artists[k]; if (a && a.image && !this.data.artists[k]) this.data.artists[k] = { image: a.image }; }
+            for (const k of Object.keys(ctx.artists)) { const a = ctx.artists[k]; if (a && !this.data.artists[k]) { if (a.image) this.data.artists[k] = { image: a.image }; else if (a.hidden) this.data.artists[k] = { hidden: true }; } }
             await this.persistData();
           }
           if (ctx.plays) {
