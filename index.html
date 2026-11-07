@@ -2457,15 +2457,21 @@
               <div class="card-title">${esc(item.title)}</div>
               <div class="card-desc">${itemTracks.filter(t => trackIds.has(t.id)).length} track${itemTracks.filter(t => trackIds.has(t.id)).length === 1 ? '' : 's'} by ${esc(name)}</div>`;
             card.onclick = () => {
+              // Esce davvero dal profilo artista: azzera lo stato e nasconde ogni vista,
+              // altrimenti render() continua a ridisegnare l'artista e le viste restano impilate.
+              this.currentArtist = null;
+              this.currentCollectionId = null;
+              this.currentPlaylistId = null;
+              ['view-collections', 'view-collection-detail', 'view-playlists', 'view-playlist-detail', 'view-library', 'view-artists', 'view-artist-detail'].forEach(id => {
+                document.getElementById(id).style.display = 'none';
+              });
               if (type === 'collection') this.openCollectionDetail(item.id);
               else {
                 this.currentPlaylistId = item.id;
-                document.getElementById('view-artist-detail').style.display = 'none';
-                document.getElementById('view-playlists').style.display = 'none';
                 document.getElementById('view-playlist-detail').style.display = 'block';
                 this.renderPlaylistDetail(item.id);
-                window.scrollTo(0, 0);
               }
+              window.scrollTo(0, 0);
             };
             grid.appendChild(card);
           });
