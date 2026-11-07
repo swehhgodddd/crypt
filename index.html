@@ -893,6 +893,14 @@
         <input type="text" id="col-title-input" class="input-field" placeholder="e.g. Dark Trap 2026">
       </div>
       <div>
+        <label class="label">Type</label>
+        <select id="col-type-input" class="input-field" aria-label="Collection type">
+          <option value="album">Album</option>
+          <option value="single">Single</option>
+          <option value="mix">Mix</option>
+        </select>
+      </div>
+      <div>
         <label class="label">Description</label>
         <textarea id="col-desc-input" class="input-field" rows="2" placeholder="Optional notes..."></textarea>
       </div>
@@ -1124,6 +1132,9 @@
 
     // Cover con trasparenza: si salvano come WebP/PNG (le opache restano JPEG), quindi il formato dice se c'e' alpha.
     // Le cover predefinite ('cd:...') non contano: hanno lo sfondo nero incluso.
+    // Tipo di collection: album (default per quelle esistenti), single o mix
+    const COLLECTION_TYPES = { album: 'Album', single: 'Single', mix: 'Mix' };
+    function collType(c) { return c && COLLECTION_TYPES[c.type] ? c.type : 'album'; }
     function isAlphaCover(c) { return typeof c === 'string' && /^data:image\/(png|webp)/.test(c); }
     function canvasHasAlpha(canvas) {
       try {
@@ -2574,6 +2585,7 @@
           const col = this.data.collections.find(c => c.id === id);
           document.getElementById('col-title-input').value = col.title;
           document.getElementById('col-desc-input').value = col.desc || '';
+          document.getElementById('col-type-input').value = collType(col);
           document.getElementById('col-cover-preview').style.backgroundImage = col.cover ? `url('${col.cover}')` : 'none';
           this.tempCroppedImageBase64 = col.cover;
           this.tempCollectionCovers = [...(col.covers || [])];
@@ -2581,6 +2593,7 @@
           titleEl.innerText = 'New collection';
           document.getElementById('col-title-input').value = '';
           document.getElementById('col-desc-input').value = '';
+          document.getElementById('col-type-input').value = 'album';
           document.getElementById('col-cover-preview').style.backgroundImage = 'none';
         }
         this.renderAltCovers();
@@ -2628,12 +2641,14 @@
       async saveCollection() {
         const title = document.getElementById('col-title-input').value.trim();
         const desc = document.getElementById('col-desc-input').value.trim();
+        const type = COLLECTION_TYPES[document.getElementById('col-type-input').value] ? document.getElementById('col-type-input').value : 'album';
         if (!title) return alert('Title is required');
 
         if (this.editingCollectionId) {
           const col = this.data.collections.find(c => c.id === this.editingCollectionId);
           col.title = title;
           col.desc = desc;
+          col.type = type;
           if (this.tempCroppedImageBase64) col.cover = this.tempCroppedImageBase64;
           col.covers = [...this.tempCollectionCovers];
           if (this.pendingLyrics.col.length) {
@@ -2648,7 +2663,7 @@
         } else {
           this.data.collections.push({
             id: uid('col'),
-            title, desc,
+            title, desc, type,
             cover: this.tempCroppedImageBase64 || null,
             covers: [...this.tempCollectionCovers]
           });
@@ -3721,7 +3736,7 @@
               <div class="card-desc">${esc(col.desc || 'No description')}</div>
             </div>
             <div class="card-footer">
-              <span>${trackCount} tracks</span>
+              <span>${COLLECTION_TYPES[collType(col)]} · ${trackCount} ${trackCount === 1 ? 'track' : 'tracks'}</span>
               <span class="btn-edit-col" data-id="${col.id}" style="cursor:pointer; color:#fff;">Edit</span>
             </div>
           `;
@@ -3750,6 +3765,7 @@
         headerEl.innerHTML = `
           <div class="detail-cover${col.cover ? ' is-zoomable' : ''}${isAlphaCover(col.cover) ? ' is-alpha' : ''}" ${col.cover ? 'role="button" tabindex="0" aria-label="Enlarge cover"' : ''} style="background-image:${col.cover ? `url('${col.cover}')` : 'none'}"></div>
           <div style="flex:1;">
+            <div class="label" style="text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;">${COLLECTION_TYPES[collType(col)]}</div>
             <div class="detail-title">${esc(col.title)}</div>
             <div class="detail-desc">${esc(col.desc || 'No description')}</div>
             <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px;">
