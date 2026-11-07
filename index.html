@@ -548,6 +548,13 @@
     .stat-row .t { min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .stat-row .n { font-variant-numeric: tabular-nums; color: var(--mute); }
     @media (max-width: 420px) { .btn-group { gap: 4px; } .btn-group .btn { padding-left: 10px; padding-right: 10px; } }
+    /* Rotellina impostazioni: menu a comparsa con Backup, Import, Style, Stats */
+    .settings-wrap { position: relative; display: flex; }
+    #btn-settings { width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; }
+    .settings-pop { position: absolute; right: 0; top: calc(100% + 12px); width: 200px; padding: 6px; gap: 0; overflow: visible; z-index: 60; box-shadow: 0 14px 40px rgba(0,0,0,.55); }
+    .settings-pop.hidden { display: none !important; }
+    button.menu-row { background: none; border: 0; border-bottom: 1px solid var(--line); color: inherit; width: 100%; text-align: left; font-family: inherit; }
+    .settings-pop .menu-row { padding: 13px 12px; font-size: 14px; }
     /* Cover PNG/WebP con trasparenza: niente sfondo, bordo, ombra o angoli arrotondati dietro l'immagine */
     html :is(.card-cover, .detail-cover, .player-cover).is-alpha {
       background-color: transparent !important; border: 0 !important; border-radius: 0 !important;
@@ -569,12 +576,19 @@
       <div class="logo-text">Crypt.</div>
     </div>
     <div class="btn-group">
-      <button id="btn-style" class="btn" title="Change the look of the app">Style</button>
-      <button id="btn-stats" class="btn" title="Listening stats">Stats</button>
-      <button id="btn-export" class="btn" title="Export Backup">Backup</button>
-      <button id="btn-import-trigger" class="btn" title="Import Backup">Import</button>
-      <input type="file" id="import-file-input" accept=".json" style="display:none">
       <button id="btn-open-create-collection" class="btn btn-white" style="display:none;">New collection</button>
+      <input type="file" id="import-file-input" accept=".json" style="display:none">
+      <div class="settings-wrap" id="settings-wrap">
+        <button id="btn-settings" class="btn" type="button" title="Settings" aria-label="Settings" aria-haspopup="menu" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <div id="settings-menu" class="modal-box settings-pop hidden" role="menu" aria-label="Settings">
+          <button type="button" id="btn-export" class="menu-row" role="menuitem" title="Export Backup">Backup</button>
+          <button type="button" id="btn-import-trigger" class="menu-row" role="menuitem" title="Import Backup">Import</button>
+          <button type="button" id="btn-style" class="menu-row" role="menuitem" title="Change the look of the app">Style</button>
+          <button type="button" id="btn-stats" class="menu-row" role="menuitem" title="Listening stats">Stats</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -2107,6 +2121,22 @@
         document.getElementById('btn-export').onclick = () => this.exportBackup();
         document.getElementById('btn-import-trigger').onclick = () => document.getElementById('import-file-input').click();
         document.getElementById('import-file-input').onchange = (e) => this.importBackup(e);
+
+        // Menu impostazioni (rotellina): si chiude con click fuori, Esc o scegliendo Style/Stats.
+        // Backup e Import restano aperti perché mostrano l'avanzamento (es. 3/120) nella loro riga.
+        const setWrap = document.getElementById('settings-wrap');
+        const setBtn = document.getElementById('btn-settings');
+        const setMenu = document.getElementById('settings-menu');
+        const setOpen = (open) => {
+          setMenu.classList.toggle('hidden', !open);
+          setBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+        setBtn.onclick = () => setOpen(setMenu.classList.contains('hidden'));
+        document.addEventListener('click', (e) => { if (!setWrap.contains(e.target)) setOpen(false); });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && !setMenu.classList.contains('hidden')) { setOpen(false); setBtn.focus(); }
+        });
+        ['btn-style', 'btn-stats'].forEach(id => document.getElementById(id).addEventListener('click', () => setOpen(false)));
 
         this.initCoverViewer();
         this.initVolume();
