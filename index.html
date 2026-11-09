@@ -584,6 +584,7 @@
         </button>
         <div id="settings-menu" class="modal-box settings-pop hidden" role="menu" aria-label="Settings">
           <button type="button" id="btn-export" class="menu-row" role="menuitem" title="Export Backup">Backup</button>
+          <button type="button" id="btn-export-new" class="menu-row" role="menuitem" title="Export only what changed since the last backup: new tracks, plus edited or new collections, playlists and artists">Backup · new only</button>
           <button type="button" id="btn-import-trigger" class="menu-row" role="menuitem" title="Import Backup">Import</button>
           <button type="button" id="btn-style" class="menu-row" role="menuitem" title="Change the look of the app">Style</button>
           <button type="button" id="btn-stats" class="menu-row" role="menuitem" title="Listening stats">Stats</button>
@@ -2130,6 +2131,7 @@
         window.addEventListener('resize', () => { if (fp.classList.contains('open')) this.setWaveMode(true); });
 
         document.getElementById('btn-export').onclick = () => this.exportBackup();
+        document.getElementById('btn-export-new').onclick = () => this.exportBackupNew();
         document.getElementById('btn-import-trigger').onclick = () => document.getElementById('import-file-input').click();
         document.getElementById('import-file-input').onchange = (e) => this.importBackup(e);
 
@@ -2141,6 +2143,7 @@
         const setOpen = (open) => {
           setMenu.classList.toggle('hidden', !open);
           setBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          if (open) this.updateNewCount();
         };
         setBtn.onclick = () => setOpen(setMenu.classList.contains('hidden'));
         document.addEventListener('click', (e) => { if (!setWrap.contains(e.target)) setOpen(false); });
@@ -3827,10 +3830,16 @@
         return `${mins}:${secs.toString().padStart(2, '0')}`;
       },
 
-      async downloadBackup(collections, playlists, tracks, name, btn) {
+      async downloadBackup(collections, playlists, tracks, name, btn, opts) {
         const label = btn ? btn.innerText : '';
         try {
-          const parts = [JSON.stringify({ crypt: 2, collections, playlists, ...(name === 'crypt_backup' ? { plays: this.data.plays || [], artists: this.data.artists || {} } : {}) }) + '\n'];
+          const full = name.indexOf('crypt_backup') === 0;
+          const header = {
+            crypt: 2, collections, playlists,
+            ...(opts && opts.sync ? { sync: true } : {}),
+            ...(full ? { plays: this.data.plays || [], artists: (opts && opts.artists) || this.data.artists || {} } : {})
+          };
+          const parts = [JSON.stringify(header) + '\n'];
           for (let i = 0; i < tracks.length; i++) {
             if (btn) btn.innerText = `${i + 1}/${tracks.length}`;
             const meta = { ...tracks[i] };
@@ -3856,8 +3865,94 @@
       },
 
       async exportBackup() {
+        if (this._exportBusy) return;
+        this._exportBusy = true;
         const ok = await this.downloadBackup(this.data.collections, this.data.playlists, this.data.tracks, 'crypt_backup', document.getElementById('btn-export'));
-        if (ok) { try { localStorage.setItem('crypt_last_backup', String(Date.now())); } catch (_) {} this.updateStorageInfo(); }
+        this._exportBusy = false;
+        if (ok) {
+          try { localStorage.setItem('crypt_last_backup', String(Date.now())); } catch (_) {}
+          this.saveSentIds(new Set(this.data.tracks.map(t => t.id)));
+          this.saveSigs(this.currentSigs());
+          this.updateStorageInfo();
+          this.updateNewCount();
+        }
+      },
+
+      // ===== Backup incrementale: tracce nuove + modifiche a collection, playlist e artisti =====
+      // Le tracce già incluse in un backup (o arrivate da un import) e una "firma" di ogni collection, playlist e artista
+      // all'ultimo backup stanno in localStorage. Se quei dati vanno persi si riparte da zero: si riesporta tutto, mai meno.
+      getSentIds() {
+        try {
+          const a = JSON.parse(localStorage.getItem('crypt_backup_sent') || '[]');
+          return new Set(Array.isArray(a) ? a : []);
+        } catch (_) { return new Set(); }
+      },
+      saveSentIds(set) {
+        const live = new Set(this.data.tracks.map(t => t.id));
+        try { localStorage.setItem('crypt_backup_sent', JSON.stringify([...set].filter(id => live.has(id)))); } catch (_) {}
+      },
+      newTracksSinceBackup() {
+        const sent = this.getSentIds();
+        return this.data.tracks.filter(t => !sent.has(t.id));
+      },
+      sigOf(v) {
+        const str = JSON.stringify(v === undefined ? null : v);
+        let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+        for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36) + ':' + str.length;
+      },
+      currentSigs() {
+        const byId = arr => Object.fromEntries((arr || []).map(x => [x.id, this.sigOf(x)]));
+        const a = {};
+        for (const k of Object.keys(this.data.artists || {})) a[k] = this.sigOf(this.data.artists[k]);
+        return { c: byId(this.data.collections), p: byId(this.data.playlists), a };
+      },
+      loadSigs() {
+        try { const o = JSON.parse(localStorage.getItem('crypt_backup_sig') || '{}'); return { c: o.c || {}, p: o.p || {}, a: o.a || {} }; }
+        catch (_) { return { c: {}, p: {}, a: {} }; }
+      },
+      saveSigs(sigs) { try { localStorage.setItem('crypt_backup_sig', JSON.stringify(sigs)); } catch (_) {} },
+      // Cosa è cambiato dall'ultimo backup. Le cancellazioni di collection e playlist non vengono mai propagate.
+      pendingChanges() {
+        const prev = this.loadSigs(), cur = this.currentSigs();
+        const diff = (c, p) => Object.keys(c).filter(k => p[k] !== c[k]);
+        return {
+          tracks: this.newTracksSinceBackup(),
+          cols: diff(cur.c, prev.c),
+          pls: diff(cur.p, prev.p),
+          arts: diff(cur.a, prev.a),
+          goneArts: Object.keys(prev.a).filter(k => !(k in cur.a)),
+          cur
+        };
+      },
+      updateNewCount() {
+        const b = document.getElementById('btn-export-new');
+        if (!b || this._exportBusy) return;
+        const ch = this.pendingChanges();
+        const n = ch.tracks.length + ch.cols.length + ch.pls.length + ch.arts.length + ch.goneArts.length;
+        b.innerText = n ? `Backup · new only (${n})` : 'Backup · new only';
+      },
+      async exportBackupNew() {
+        if (this._exportBusy) return;
+        const ch = this.pendingChanges();
+        if (!ch.tracks.length && !ch.cols.length && !ch.pls.length && !ch.arts.length && !ch.goneArts.length) return alert('Nothing new since the last backup.');
+        const cols = this.data.collections.filter(c => ch.cols.includes(c.id));
+        const pls = this.data.playlists.filter(p => ch.pls.includes(p.id));
+        const artists = {};
+        ch.arts.forEach(k => { artists[k] = this.data.artists[k]; });
+        ch.goneArts.forEach(k => { artists[k] = null; });
+        this._exportBusy = true;
+        const ok = await this.downloadBackup(cols, pls, ch.tracks, 'crypt_backup_new', document.getElementById('btn-export-new'), { sync: true, artists });
+        this._exportBusy = false;
+        if (ok) {
+          const sent = this.getSentIds();
+          ch.tracks.forEach(t => sent.add(t.id));
+          this.saveSentIds(sent);
+          this.saveSigs(ch.cur);
+        }
+        this.updateNewCount();
       },
 
       // Esporta una playlist con le sue tracce (e le collection di provenienza, così l'import le ritrova)
@@ -3909,6 +4004,7 @@
         const t = { ...meta };
         delete t.audioData;
         const key = this.audioKey(t.id);
+        if (ctx.seen) ctx.seen.push(t.id);
         if (ctx.localIds.has(t.id)) {
           ctx.skipped++;
           if (audio && !ctx.audioKeys.has(key)) {
@@ -3932,7 +4028,7 @@
         const file = e.target.files[0];
         e.target.value = '';
         if (!file) return;
-        if (!confirm('The backup will be merged with what is already in Crypt. Nothing existing is deleted or overwritten. Continue?')) return;
+        if (!confirm('The backup will be merged with what is already in Crypt. Existing tracks are never deleted or overwritten. If this is a "new only" backup, collections, playlists and artists that were edited are updated too. Continue?')) return;
 
         const btn = document.getElementById('btn-import-trigger');
         const label = btn.innerText;
@@ -3941,15 +4037,24 @@
           colIds: new Set(this.data.collections.map(c => c.id)),
           plIds: new Set(this.data.playlists.map(p => p.id)),
           audioKeys: new Set(await localforage.keys()),
-          newCols: [], newTracks: [], newPlaylists: [], written: [],
+          newCols: [], newTracks: [], newPlaylists: [], written: [], seen: [],
+          updCols: [], updPls: [], sync: false,
           skipped: 0, restored: 0, recognized: false
         };
 
         const addCollections = (cols) => {
-          for (const c of cols) { if (c && c.id && !ctx.colIds.has(c.id)) { ctx.colIds.add(c.id); ctx.newCols.push(c); } }
+          for (const c of cols) {
+            if (!c || !c.id) continue;
+            if (!ctx.colIds.has(c.id)) { ctx.colIds.add(c.id); ctx.newCols.push(c); }
+            else if (ctx.sync) ctx.updCols.push(c);
+          }
         };
         const addPlaylists = (pls) => {
-          for (const p of pls) { if (p && p.id && !ctx.plIds.has(p.id)) { ctx.plIds.add(p.id); ctx.newPlaylists.push(p); } }
+          for (const p of pls) {
+            if (!p || !p.id) continue;
+            if (!ctx.plIds.has(p.id)) { ctx.plIds.add(p.id); ctx.newPlaylists.push(p); }
+            else if (ctx.sync) ctx.updPls.push(p);
+          }
         };
 
         try {
@@ -3963,6 +4068,7 @@
               for (const t of o.tracks) await this.importTrack(t, t.audioData, ctx);
             } else if (o.collections || o.playlists) {
               ctx.recognized = true;
+              if (o.sync) ctx.sync = true;
               if (Array.isArray(o.plays)) ctx.plays = o.plays;
               if (o.artists && typeof o.artists === 'object') ctx.artists = o.artists;
               if (o.collections) addCollections(o.collections);
@@ -3975,19 +4081,42 @@
           });
           if (!ctx.recognized) throw new Error('Invalid backup file');
 
-          if (ctx.newCols.length || ctx.newTracks.length || ctx.newPlaylists.length) {
+          if (ctx.newCols.length || ctx.newTracks.length || ctx.newPlaylists.length || ctx.updCols.length || ctx.updPls.length) {
+            const uc = new Map(ctx.updCols.map(c => [c.id, c]));
+            const up = new Map(ctx.updPls.map(p => [p.id, p]));
+            // Preferiti: si uniscono (ordine del file, poi quelli solo locali) per non perdere i cuori messi su questo dispositivo
+            const mergePl = (old) => {
+              const inc = up.get(old.id);
+              if (!inc) return old;
+              if (old.id !== 'pl_preferiti') return inc;
+              const have = new Set(inc.trackIds || []);
+              return { ...inc, trackIds: [...(inc.trackIds || []), ...(old.trackIds || []).filter(id => !have.has(id))] };
+            };
             this.data = {
               ...this.data,
-              collections: [...this.data.collections, ...ctx.newCols],
-              playlists: [...this.data.playlists, ...ctx.newPlaylists],
+              collections: [...this.data.collections.map(c => uc.get(c.id) || c), ...ctx.newCols],
+              playlists: [...this.data.playlists.map(mergePl), ...ctx.newPlaylists],
               tracks: [...this.data.tracks, ...ctx.newTracks]
             };
             await this.persistData();
           }
 
+          if (ctx.seen.length) {
+            const sent = this.getSentIds();
+            ctx.seen.forEach(id => sent.add(id));
+            this.saveSentIds(sent);
+          }
+
           if (ctx.artists) {
             this.data.artists = this.data.artists || {};
-            for (const k of Object.keys(ctx.artists)) { const a = ctx.artists[k]; if (a && !this.data.artists[k]) { if (a.image) this.data.artists[k] = { image: a.image }; else if (a.hidden) this.data.artists[k] = { hidden: true }; } }
+            for (const k of Object.keys(ctx.artists)) { const a = ctx.artists[k];
+              if (ctx.sync) {
+                if (a === null) delete this.data.artists[k];
+                else if (a && a.image) this.data.artists[k] = { image: a.image };
+                else if (a && a.hidden) this.data.artists[k] = { hidden: true };
+                continue;
+              }
+              if (a && !this.data.artists[k]) { if (a.image) this.data.artists[k] = { image: a.image }; else if (a.hidden) this.data.artists[k] = { hidden: true }; } }
             await this.persistData();
           }
           if (ctx.plays) {
@@ -4001,6 +4130,7 @@
             `New collections: ${ctx.newCols.length}\n` +
             `New playlists: ${ctx.newPlaylists.length}\n` +
             `New tracks: ${ctx.newTracks.length}\n` +
+            (ctx.sync ? `Updated collections: ${ctx.updCols.length}\nUpdated playlists: ${ctx.updPls.length}\n` : '') +
             `Already present (kept as is): ${ctx.skipped}` +
             (ctx.restored ? `\nMissing audio restored: ${ctx.restored}` : '')
           );
