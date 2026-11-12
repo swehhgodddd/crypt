@@ -140,6 +140,9 @@
     .full-controls .btn-play svg { width: 26px; height: 26px; }
     .full-controls .btn-ctrl { width: 44px; height: 44px; opacity: .75; }
 
+    .full-cover { display: none; }
+    .full-lcd { display: contents; }
+
     .storage-info { margin-top: 56px; font-size: 12px; color: var(--mute); }
     .btn-quiet { border-color: transparent; color: var(--mute); padding: 6px 8px; }
     .btn-quiet:hover { border-color: transparent; color: #fff; }
@@ -505,6 +508,71 @@
     html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) .queue-row.is-drop-target { border-color: var(--acc); background: rgba(255,255,255,.4); }
     html[data-skin]:not([data-skin=press]):not([data-skin=goforit]):not([data-skin=nostalgia]) #full-player { --fg:#fff; --mute:#bdbdbd; --line:rgba(255,255,255,.14); --soft:rgba(255,255,255,.06); color: #fff; }
 
+
+    /* ===== Quartz: player a schermo intero (alluminio spazzolato + display LCD) ===== */
+    html[data-skin=quartz] #full-player#full-player { --fg:#15171a; --mute:#4a5057; --line:rgba(0,0,0,.28); --soft:rgba(0,0,0,.09); color: var(--fg);
+      background: linear-gradient(rgba(255,255,255,.65), rgba(255,255,255,0) 40%), var(--brush), var(--chassis); }
+    html[data-skin=quartz] #full-player#full-player #full-bg, html[data-skin=quartz] #full-player#full-player .full-shade { display: none; }
+    html[data-skin=quartz] #full-player#full-player .full-inner { max-width: 620px; gap: 16px; }
+
+    /* barra superiore: titolo inciso + tasti tondi metallici */
+    html[data-skin=quartz] #full-player#full-player .full-top { position: relative; }
+    html[data-skin=quartz] #full-player#full-player .full-top::before { content: "QUARTZ"; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-size: 11px; font-weight: 700; letter-spacing: .34em; color: #7d838a; text-shadow: 0 1px 0 rgba(255,255,255,.9); pointer-events: none; }
+    html[data-skin=quartz] #full-player#full-player .btn-ctrl { opacity: 1; color: #1c1e21; background: var(--btn); border: 1px solid #6f7378; border-radius: 50%; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.35); }
+    html[data-skin=quartz] #full-player#full-player .full-top .btn-ctrl { width: 38px; height: 38px; }
+    html[data-skin=quartz] #full-player#full-player .btn-ctrl:hover { filter: brightness(1.06); border-color: #4a4e53; }
+    html[data-skin=quartz] #full-player#full-player .btn-ctrl:active { filter: brightness(.92); box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+    html[data-skin=quartz] #full-player#full-player .btn-ctrl.active { background: var(--lcd); color: var(--lcd-fg); border-color: rgba(0,0,0,.6); box-shadow: inset 0 2px 5px rgba(0,0,0,.45); }
+    html[data-skin=quartz] #full-player#full-player .btn-ctrl.active::after { display: none; }
+
+    /* cover: cornice d'alluminio con riflesso sul vetro */
+    html[data-skin=quartz] #full-player#full-player .full-body { gap: 18px; }
+    html[data-skin=quartz] #full-player#full-player .full-cover { display: block; position: relative; flex: 0 0 auto; width: min(100%, 34vh, 320px); aspect-ratio: 1; margin: 8px auto 4px; border-radius: 3px; background-color: var(--soft); background-size: cover; background-position: center;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.7), 0 0 0 7px #d3d5d9, 0 0 0 8px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.25), 0 16px 28px -6px rgba(0,0,0,.5); }
+    html[data-skin=quartz] #full-player#full-player .full-cover::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(155deg, rgba(255,255,255,.38), rgba(255,255,255,0) 42%); }
+    html[data-skin=quartz] #full-player#full-player .full-cover.is-alpha { background-color: transparent; background-size: contain; background-repeat: no-repeat; box-shadow: none; border-radius: 0; filter: drop-shadow(0 10px 14px rgba(0,0,0,.35)); }
+    html[data-skin=quartz] #full-player#full-player .full-cover.is-alpha::after { display: none; }
+    html[data-skin=quartz] #full-player#full-player.lyrics-on .full-cover { display: none; }
+
+    /* display LCD */
+    html[data-skin=quartz] #full-player#full-player .full-lcd { display: flex; flex-direction: column; gap: 10px; position: relative; isolation: isolate; overflow: hidden; min-height: 0; padding: 14px 16px 12px; border-radius: 10px;
+      color: var(--lcd-fg); text-shadow: var(--lcd-glow); border: 1px solid rgba(0,0,0,.6);
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,.04) 0 1px, transparent 1px 3px), var(--lcd);
+      box-shadow: inset 0 2px 7px rgba(0,0,0,.45), 0 1px 0 #fff; }
+    html[data-skin=quartz] #full-player#full-player .full-lcd::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 46%; z-index: -1; pointer-events: none; background: linear-gradient(rgba(255,255,255,.4), rgba(255,255,255,0)); }
+    html[data-skin=quartz] #full-player#full-player.lyrics-on .full-lcd { flex: 1; }
+    html[data-skin=quartz] #full-player#full-player .full-meta { text-align: left; }
+    html[data-skin=quartz] #full-player#full-player .full-title { font-size: clamp(20px, 5vw, 30px); letter-spacing: -.01em; line-height: 1.1; color: var(--lcd-fg); }
+    html[data-skin=quartz] #full-player#full-player.lyrics-on .full-title { font-size: clamp(17px, 4vw, 22px); }
+    html[data-skin=quartz] #full-player#full-player .full-sub { color: var(--lcd-fg); opacity: .72; margin-top: 6px; font-size: 12px; font-family: Consolas,"Courier New",monospace; }
+    html[data-skin=quartz] #full-player#full-player #full-wave-holder { padding-top: 10px; border-top: 1px solid rgba(31,42,20,.28); }
+    html[data-skin=quartz] #full-player#full-player .full-times { color: var(--lcd-fg); font-size: 13px; letter-spacing: .06em; }
+    html[data-skin=quartz] #full-player#full-player #full-time { font-weight: 700; }
+
+    /* lyrics dentro l'LCD */
+    html[data-skin=quartz] #full-player#full-player .ly-line { font-size: clamp(17px, 3.6vw, 24px); color: rgba(31,42,20,.38); }
+    html[data-skin=quartz] #full-player#full-player .ly-line:hover { color: rgba(31,42,20,.65); }
+    html[data-skin=quartz] #full-player#full-player .ly-line.on { color: var(--lcd-fg); }
+    html[data-skin=quartz] #full-player#full-player .ly-plain { color: var(--lcd-fg); font-size: clamp(15px, 3.2vw, 19px); }
+    html[data-skin=quartz] #full-player#full-player .ly-sync { color: var(--lcd-fg); }
+
+    /* trasporto: vassoio incassato con tasti in rilievo */
+    html[data-skin=quartz] #full-player#full-player .full-controls { position: relative; gap: 18px; padding: 12px 20px; border-radius: 16px; background: rgba(0,0,0,.06); box-shadow: inset 0 1px 4px rgba(0,0,0,.28), 0 1px 0 rgba(255,255,255,.85); }
+    html[data-skin=quartz] #full-player#full-player .full-controls .btn-ctrl { width: 48px; height: 48px; }
+    html[data-skin=quartz] #full-player#full-player .full-controls .btn-play { width: 68px; height: 68px; color: var(--acc); background: var(--btn); border: 1px solid #5b5f64; box-shadow: inset 0 1px 0 #fff, inset 0 -3px 6px rgba(0,0,0,.14), 0 2px 5px rgba(0,0,0,.4); }
+    html[data-skin=quartz] #full-player#full-player .full-controls .btn-play:hover { filter: brightness(1.05); }
+    html[data-skin=quartz] #full-player#full-player .full-controls .btn-play:active { filter: brightness(.92); box-shadow: inset 0 2px 5px rgba(0,0,0,.4); }
+    html[data-skin=quartz] #full-player#full-player #full-repeat-btn { width: 38px; height: 38px; right: 16px !important; top: 50%; transform: translateY(-50%); }
+
+    @media (max-width: 520px) {
+      html[data-skin=quartz] #full-player#full-player .full-inner { gap: 12px; }
+      html[data-skin=quartz] #full-player#full-player .full-body { gap: 14px; }
+      html[data-skin=quartz] #full-player#full-player .full-controls { gap: 14px; padding: 10px 14px; }
+      html[data-skin=quartz] #full-player#full-player #full-repeat-btn { right: 10px !important; }
+    }
+    @media (max-width: 420px) { html[data-skin=quartz] #full-player#full-player .full-top::before { display: none; } }
+    @media (max-height: 620px) { html[data-skin=quartz] #full-player#full-player .full-cover { display: none; } }
+
     /* Riordino tracce nell'Edit della playlist (stesso linguaggio della coda) */
     .order-list { display: flex; flex-direction: column; gap: 6px; max-height: 38vh; overflow-y: auto; overscroll-behavior: contain; }
     .order-row { cursor: default; padding: 6px 10px; justify-content: flex-start; }
@@ -763,6 +831,8 @@
         </div>
       </div>
       <div class="full-body">
+        <div id="full-cover" class="full-cover" aria-hidden="true"></div>
+        <div class="full-lcd">
         <div class="full-meta">
           <div id="full-title" class="full-title">Track</div>
           <div id="full-sub" class="full-sub">--</div>
@@ -771,6 +841,7 @@
         <div id="ly-sync" class="ly-sync"><button type="button" id="ly-earlier" class="btn">Sooner 0.5s</button><span id="ly-shift">0.0s</span><button type="button" id="ly-later" class="btn">Later 0.5s</button></div>
         <div id="full-wave-holder"></div>
         <div class="full-times"><span id="full-time">0:00</span><span id="full-duration">0:00</span></div>
+        </div>
       </div>
       <div class="full-controls">
         <button id="full-prev-btn" class="btn-ctrl" aria-label="Previous track"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg></button>
@@ -1462,7 +1533,7 @@
       setWaveMode(full) {
         try {
           this.wavesurfer.setOptions(full
-            ? { height: document.getElementById('full-player').classList.contains('lyrics-on') ? 72 : (window.innerWidth <= 520 ? 150 : 220), minPxPerSec: 70, barWidth: 3, barGap: 3, barRadius: 3 }
+            ? { height: document.getElementById('full-player').classList.contains('lyrics-on') ? 72 : (document.documentElement.getAttribute('data-skin') === 'quartz' ? (window.innerWidth <= 520 ? 84 : 120) : (window.innerWidth <= 520 ? 150 : 220)), minPxPerSec: 70, barWidth: 3, barGap: 3, barRadius: 3 }
             : { height: 48, minPxPerSec: 0, barWidth: 2, barGap: 2, barRadius: 2 });
         } catch (err) { console.warn('Waveform resize:', err); }
       },
@@ -1547,6 +1618,7 @@
         else document.documentElement.setAttribute('data-skin', sk.id);
         if (save) { try { localStorage.setItem('crypt_skin', sk.id); } catch (_) {} }
         if (this.wavesurfer && this.wavesurfer.setOptions) this.wavesurfer.setOptions(sk.wave);
+        if (this.wavesurfer && document.getElementById('full-player').classList.contains('open')) this.setWaveMode(true);
       },
       openStyleModal() {
         const cur = this.savedSkin();
@@ -3317,6 +3389,9 @@
         document.getElementById('player-cover').style.backgroundImage = coverCss;
         document.getElementById('player-cover').classList.toggle('is-alpha', isAlphaCover(track.cover || (parentCol && parentCol.cover) || null));
         document.getElementById('full-bg').style.backgroundImage = coverCss;
+        const fullCover = document.getElementById('full-cover');
+        fullCover.style.backgroundImage = coverCss;
+        fullCover.classList.toggle('is-alpha', isAlphaCover(track.cover || (parentCol && parentCol.cover) || null));
         this.updateMediaSession(track);
         this.setLyrics(track);
 
