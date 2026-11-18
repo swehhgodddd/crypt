@@ -1437,11 +1437,29 @@
       },
 
       async folderPick() {
-        if (!this.folderSupported()) return alert('This browser cannot open folders. Use Chrome on Android (version 132 or later).');
-        if (this.dir && !this.dirOk && await this.folderEnsure()) return this.folderSync(false);
-        if (this.dir && this.dirOk && !confirm('Library folder: ' + this.dir.name + '\nChoose a different folder? (Cancel keeps this one)')) return;
+        if (!this.folderSupported()) return alert('This browser cannot open folders. Use Chrome on Android (version 132 or later), not an in-app browser.');
+        // Cartella gia' collegata ma permesso perso: prova prima a riottenerlo.
+        // Se non va, NON chiamare il selettore nello stesso tocco (Chrome Android lo rifiuta senza "user gesture"): al tocco dopo si apre.
+        if (this.dir && !this.dirOk && !this._pickNext) {
+          if (await this.folderEnsure()) return this.folderSync(false);
+          this._pickNext = true;
+          return alert('Permission to the folder was not granted. Tap "Choose folder…" again to pick it.');
+        }
+        this._pickNext = false;
+        // Il selettore va chiamato subito dentro il tocco: niente await/confirm prima.
+        // Annullare il selettore lascia la cartella attuale com'e'.
         let h;
-        try { h = await window.showDirectoryPicker({ id: 'crypt-library', mode: 'readwrite' }); } catch (_) { return; }
+        try {
+          h = await window.showDirectoryPicker({ id: 'crypt-library', mode: 'readwrite' });
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          console.warn('showDirectoryPicker:', err);
+          const hint = (err && err.name === 'SecurityError')
+            ? 'Android does not allow this folder (Downloads, the root of the storage, Android/… or system folders). Create a subfolder, e.g. Music/Crypt, and choose that one.'
+            : 'The folder picker could not be opened.';
+          alert(hint + '\n\n(' + (err && err.name ? err.name : 'Error') + (err && err.message ? ': ' + err.message : '') + ')');
+          return;
+        }
         this.dir = h; this.dirOk = true; this._libLoaded = false;
         try { await FolderStore.set(h); } catch (err) { console.warn(err); }
         this.data.folder = { name: h.name };
