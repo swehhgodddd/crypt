@@ -623,6 +623,12 @@
     .settings-pop.hidden { display: none !important; }
     button.menu-row { background: none; border: 0; border-bottom: 1px solid var(--line); color: inherit; width: 100%; text-align: left; font-family: inherit; }
     .settings-pop .menu-row { padding: 13px 12px; font-size: 14px; }
+    .settings-pop { width: 236px; }
+    .menu-sec { padding: 16px 12px 6px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+    .menu-sec:first-child { padding-top: 8px; }
+    .settings-pop .menu-row:has(+ .menu-sec) { border-bottom: 0; }
+    .menu-row.has-sub { flex-direction: column; align-items: flex-start; gap: 3px; }
+    .menu-row .mr-s { font-size: 12px; font-weight: 400; color: var(--mute); text-transform: none; letter-spacing: 0; font-variant: normal; line-height: 1.3; }
     /* Soft clipping: pannello dentro il menu dei 3 puntini del player */
     .sc-panel { display: none; padding: 4px 12px 16px; border-bottom: 1px solid var(--line); }
     .sc-panel.open { display: block; }
@@ -668,12 +674,15 @@
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
         <div id="settings-menu" class="modal-box settings-pop hidden" role="menu" aria-label="Settings">
-          <button type="button" id="btn-export" class="menu-row" role="menuitem" title="Export Backup">Backup</button>
-          <button type="button" id="btn-export-new" class="menu-row" role="menuitem" title="Export only what changed since the last backup: new tracks, plus edited or new collections, playlists and artists">Backup · new only</button>
-          <button type="button" id="btn-import-trigger" class="menu-row" role="menuitem" title="Import Backup">Import</button>
-          <button type="button" id="btn-folder-pick" class="menu-row" role="menuitem" title="Play files straight from a folder on this phone and keep the library JSON (covers included) next to them">Library folder…</button>
-          <button type="button" id="btn-folder-scan" class="menu-row" role="menuitem" style="display:none" title="Add new audio files found in the folder and reload the library JSON">Scan folder</button>
-          <button type="button" id="btn-folder-move" class="menu-row" role="menuitem" style="display:none" title="Move audio stored inside the app into the folder">Move audio to folder</button>
+          <div class="menu-sec" id="menu-sec-folder">Library folder</div>
+          <button type="button" id="btn-folder-pick" class="menu-row has-sub" role="menuitem" title="Play files straight from a folder on this phone and keep the library JSON (covers included) next to them"><span class="mr-t">Choose folder…</span><span class="mr-s">Play files straight from your phone</span></button>
+          <button type="button" id="btn-folder-scan" class="menu-row" role="menuitem" style="display:none" title="Add new audio files found in the folder and reload the library JSON">Scan for new files</button>
+          <button type="button" id="btn-folder-move" class="menu-row" role="menuitem" style="display:none" title="Move audio stored inside the app into the folder">Move app audio to folder</button>
+          <div class="menu-sec">Backup</div>
+          <button type="button" id="btn-export" class="menu-row" role="menuitem" title="Export everything: all tracks, collections and playlists">Full backup</button>
+          <button type="button" id="btn-export-new" class="menu-row" role="menuitem" title="Export only what changed since the last backup: new tracks, plus edited or new collections, playlists and artists">Changes only</button>
+          <button type="button" id="btn-import-trigger" class="menu-row" role="menuitem" title="Import a backup file">Import backup</button>
+          <div class="menu-sec">App</div>
           <button type="button" id="btn-style" class="menu-row" role="menuitem" title="Change the look of the app">Style</button>
           <button type="button" id="btn-stats" class="menu-row" role="menuitem" title="Listening stats">Stats</button>
         </div>
@@ -1406,8 +1415,9 @@
         const pick = document.getElementById('btn-folder-pick'), scan = document.getElementById('btn-folder-scan'),
               move = document.getElementById('btn-folder-move'), ban = document.getElementById('folder-banner');
         if (!pick) return;
-        if (!this.folderSupported()) { pick.style.display = 'none'; return; }
-        pick.innerText = this.dir ? 'Folder: ' + this.dir.name + (this.dirOk ? '' : ' (reconnect)') : 'Library folder…';
+        if (!this.folderSupported()) { pick.style.display = 'none'; document.getElementById('menu-sec-folder').style.display = 'none'; return; }
+        pick.querySelector('.mr-t').innerText = this.dir ? (this.dirOk ? 'Change folder…' : 'Reconnect folder') : 'Choose folder…';
+        pick.querySelector('.mr-s').innerText = this.dir ? this.dir.name + (this.dirOk ? ' · connected' : ' · tap to reconnect') : 'Play files straight from your phone';
         scan.style.display = move.style.display = (this.dir && this.dirOk) ? '' : 'none';
         ban.style.display = (this.dir && !this.dirOk) ? 'block' : 'none';
       },
@@ -4484,7 +4494,7 @@
         if (!b || this._exportBusy) return;
         const ch = this.pendingChanges();
         const n = ch.tracks.length + ch.cols.length + ch.pls.length + ch.arts.length + ch.goneArts.length;
-        b.innerText = n ? `Backup · new only (${n})` : 'Backup · new only';
+        b.innerText = n ? `Changes only (${n})` : 'Changes only';
       },
       async exportBackupNew() {
         if (this._exportBusy) return;
@@ -4581,7 +4591,7 @@
         const file = e.target.files[0];
         e.target.value = '';
         if (!file) return;
-        if (!confirm('The backup will be merged with what is already in Crypt. Existing tracks are never deleted or overwritten. If this is a "new only" backup, collections, playlists and artists that were edited are updated too. Continue?')) return;
+        if (!confirm('The backup will be merged with what is already in Crypt. Existing tracks are never deleted or overwritten. If this is a "changes only" backup, collections, playlists and artists that were edited are updated too. Continue?')) return;
 
         const btn = document.getElementById('btn-import-trigger');
         const label = btn.innerText;
