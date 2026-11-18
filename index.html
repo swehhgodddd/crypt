@@ -671,6 +671,9 @@
           <button type="button" id="btn-export" class="menu-row" role="menuitem" title="Export Backup">Backup</button>
           <button type="button" id="btn-export-new" class="menu-row" role="menuitem" title="Export only what changed since the last backup: new tracks, plus edited or new collections, playlists and artists">Backup · new only</button>
           <button type="button" id="btn-import-trigger" class="menu-row" role="menuitem" title="Import Backup">Import</button>
+          <button type="button" id="btn-folder-pick" class="menu-row" role="menuitem" title="Play files straight from a folder on this phone and keep the library JSON (covers included) next to them">Library folder…</button>
+          <button type="button" id="btn-folder-scan" class="menu-row" role="menuitem" style="display:none" title="Add new audio files found in the folder and reload the library JSON">Scan folder</button>
+          <button type="button" id="btn-folder-move" class="menu-row" role="menuitem" style="display:none" title="Move audio stored inside the app into the folder">Move audio to folder</button>
           <button type="button" id="btn-style" class="menu-row" role="menuitem" title="Change the look of the app">Style</button>
           <button type="button" id="btn-stats" class="menu-row" role="menuitem" title="Listening stats">Stats</button>
         </div>
@@ -678,6 +681,7 @@
     </div>
   </header>
 
+  <div id="folder-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9000;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:#b3261e;color:#fff;font:600 14px/1.3 system-ui,sans-serif;text-align:center;cursor:pointer">Library folder disconnected. Tap to reconnect.</div>
   <main>
     <div id="breadcrumb" style="display:none; margin-bottom: 28px; font-size: 13px; color: #8c8c8c;">
       <span id="nav-home" style="cursor:pointer;">Crypt</span> / <span id="nav-current" style="color:#fff;">...</span>
@@ -1261,6 +1265,13 @@
     }
     function isAudioFile(f) { return /^audio\//.test(f.type || '') || /\.(mp3|wav|m4a|aac|flac|ogg|oga|opus|aif|aiff|wma)$/i.test(f.name || ''); }
 
+    // Handle della cartella libreria: salvato in un IndexedDB a parte (i FileSystemHandle si clonano solo li')
+    const FolderStore = {
+      open() { return new Promise((res, rej) => { const r = indexedDB.open('CRYPT_FOLDER', 1); r.onupgradeneeded = () => r.result.createObjectStore('h'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+      async get() { const db = await this.open(); return new Promise((res, rej) => { const q = db.transaction('h').objectStore('h').get('dir'); q.onsuccess = () => res(q.result || null); q.onerror = () => rej(q.error); }); },
+      async set(h) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('h', 'readwrite'); tx.objectStore('h').put(h, 'dir'); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); }
+    };
+
     const app = {
       data: { collections: [], tracks: [], playlists: [] },
       currentCollectionId: null,
@@ -1301,8 +1312,26 @@
       menuPlaylistCtx: null,
 
       async init() {
-        localforage.config({ name: 'CRYPT_STORAGE', storeName: 'crypt_data' });
-        const savedData = await localforage.getItem('crypt_app_data');
+        // Se localforage non e' caricato (CDN non raggiungibile) o IndexedDB non risponde, NON si parte con una libreria vuota:
+        // verrebbe poi salvata sopra i dati veri. Si mostra un avviso e non si tocca niente.
+        let savedData = null;
+        try {
+          if (typeof localforage === 'undefined') throw new Error('Storage library not loaded (offline?)');
+          // Solo IndexedDB: altrimenti localforage puo' ripiegare in silenzio su localStorage (vuoto) e i dati sembrano spariti.
+          localforage.config({ name: 'CRYPT_STORAGE', storeName: 'crypt_data', driver: [localforage.INDEXEDDB] });
+          await localforage.ready();
+          savedData = await localforage.getItem('crypt_app_data');
+          if (!savedData) {
+            // copia dell'inizio dell'ultima sessione, usata solo se la chiave principale manca del tutto
+            const prev = await localforage.getItem('crypt_app_data_prev');
+            if (prev && prev.tracks && prev.tracks.length) savedData = prev;
+          }
+        } catch (err) {
+          console.warn('Storage unavailable:', err);
+          this.storageFailed = true;
+          this.showStorageProblem(err);
+          return;
+        }
         if (savedData) {
             this.data = savedData;
             if (!this.data.playlists) this.data.playlists = [];
@@ -1322,7 +1351,9 @@
         const favMig = this.data.playlists.find(p => p.id === 'pl_preferiti');
         if (favMig && favMig.title === 'Preferiti') { favMig.title = 'Favorites'; if (favMig.desc === 'I tuoi brani preferiti') favMig.desc = 'Your favorite tracks'; }
 
-        if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+        try { await this.folderInit(); } catch (err) { console.warn('Folder init:', err); }
+        if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(() => this.updateStorageInfo()).catch(() => {});
+        if (this.data.tracks.length) localforage.setItem('crypt_app_data_prev', this.data).catch(() => {});
         try { await this.migrateLegacyAudio(); } catch (err) { console.warn('Audio migration:', err); }
 
         this.initWaveSurfer();
@@ -1332,9 +1363,275 @@
         this.initBackNav();
         this.updateStorageInfo();
         this.initIncomingFiles();
+        this.folderUI();
+        this.folderScan(true);
+      },
+
+      showStorageProblem(err) {
+        const d = document.createElement('div');
+        d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.94);color:#fff;font:15px/1.5 -apple-system,system-ui,sans-serif;text-align:center';
+        d.innerHTML = '<div style="max-width:380px"><h2 style="margin:0 0 12px;font-size:20px">Crypt cannot read its storage</h2>'
+          + '<p style="margin:0 0 16px;opacity:.85">Your library is most likely still there. Nothing has been saved or overwritten. Close the app completely and open it again.</p>'
+          + '<button id="storage-retry" style="padding:10px 22px;border-radius:10px;border:0;font-size:15px;cursor:pointer">Try again</button>'
+          + '<p style="margin:16px 0 0;font-size:12px;opacity:.55">' + esc(String((err && (err.message || err.name)) || err)) + '</p></div>';
+        document.body.appendChild(d);
+        document.getElementById('storage-retry').onclick = () => location.reload();
       },
 
       audioKey(id) { return 'audio_' + id; },
+
+      // ===== Cartella libreria (File System Access API, Chrome/Android 132+) =====
+      // Gli audio restano nella cartella scelta (sottocartella = collection). In IndexedDB restano solo i metadati,
+      // e l'app salva da sola crypt_library.json (collection, playlist, ordine, cover) nella cartella stessa.
+      dir: null, dirOk: false, _libLoaded: false, _libTimer: null, _scanning: false,
+      folderSupported() { return typeof window.showDirectoryPicker === 'function'; },
+
+      async folderInit() {
+        if (!this.folderSupported()) return;
+        try { this.dir = await FolderStore.get(); } catch (_) { this.dir = null; }
+        if (this.dir) {
+          try { this.dirOk = (await this.dir.queryPermission({ mode: 'readwrite' })) === 'granted'; } catch (_) { this.dirOk = false; }
+          if (this.dirOk) {
+            const lib = await this.readLibraryFile();
+            // archivio del browser svuotato: la libreria si ricostruisce dal JSON nella cartella
+            if (lib && !this.data.tracks.some(t => t.path)) { this.mergeLibrary(lib); await this.persistData(); }
+          }
+        }
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden && this._libTimer) { clearTimeout(this._libTimer); this._libTimer = null; this.writeLibraryFile().catch(() => {}); }
+        });
+      },
+
+      folderUI() {
+        const pick = document.getElementById('btn-folder-pick'), scan = document.getElementById('btn-folder-scan'),
+              move = document.getElementById('btn-folder-move'), ban = document.getElementById('folder-banner');
+        if (!pick) return;
+        if (!this.folderSupported()) { pick.style.display = 'none'; return; }
+        pick.innerText = this.dir ? 'Folder: ' + this.dir.name + (this.dirOk ? '' : ' (reconnect)') : 'Library folder…';
+        scan.style.display = move.style.display = (this.dir && this.dirOk) ? '' : 'none';
+        ban.style.display = (this.dir && !this.dirOk) ? 'block' : 'none';
+      },
+
+      // Chiede il permesso (serve un tocco dopo il riavvio del browser)
+      async folderEnsure() {
+        if (!this.dir) return false;
+        if (this.dirOk) return true;
+        try { this.dirOk = (await this.dir.requestPermission({ mode: 'readwrite' })) === 'granted'; } catch (_) { this.dirOk = false; }
+        this.folderUI();
+        return this.dirOk;
+      },
+
+      async folderReconnect() {
+        if (!(await this.folderEnsure())) return;
+        await this.folderSync(false);
+      },
+
+      async folderPick() {
+        if (!this.folderSupported()) return alert('This browser cannot open folders. Use Chrome on Android (version 132 or later).');
+        if (this.dir && !this.dirOk && await this.folderEnsure()) return this.folderSync(false);
+        if (this.dir && this.dirOk && !confirm('Library folder: ' + this.dir.name + '\nChoose a different folder? (Cancel keeps this one)')) return;
+        let h;
+        try { h = await window.showDirectoryPicker({ id: 'crypt-library', mode: 'readwrite' }); } catch (_) { return; }
+        this.dir = h; this.dirOk = true; this._libLoaded = false;
+        try { await FolderStore.set(h); } catch (err) { console.warn(err); }
+        this.data.folder = { name: h.name };
+        await this.folderSync(false);
+      },
+
+      // Ricarica il JSON della cartella (aggiunge solo cio' che manca) e cerca nuovi file audio
+      async folderSync(silent) {
+        if (!this.dir || !(await this.folderEnsure())) return;
+        const lib = await this.readLibraryFile();
+        if (lib) this.mergeLibrary(lib);
+        await this.persistData();
+        await this.folderScan(silent);
+        this.scheduleLibraryWrite();
+        this.folderUI();
+      },
+
+      async readLibraryFile() {
+        try {
+          const fh = await this.dir.getFileHandle('crypt_library.json');
+          const lib = JSON.parse(await (await fh.getFile()).text());
+          this._libLoaded = true;
+          return lib;
+        } catch (e) {
+          if (e && e.name === 'NotFoundError') { this._libLoaded = true; return null; }
+          console.warn('crypt_library.json:', e);   // illeggibile: non lo sovrascrivo
+          return null;
+        }
+      },
+
+      scheduleLibraryWrite() {
+        if (!this.dir || !this.dirOk || !this._libLoaded) return;
+        clearTimeout(this._libTimer);
+        this._libTimer = setTimeout(() => { this._libTimer = null; this.writeLibraryFile().catch(e => console.warn('Library file:', e)); }, 2500);
+      },
+
+      async writeLibraryFile() {
+        if (!this.dir || !this.dirOk || !this._libLoaded) return;
+        const d = this.data;
+        const lib = {
+          crypt: 3, savedAt: Date.now(),
+          collections: d.collections, playlists: d.playlists, artists: d.artists || {}, plays: d.plays || [], ignored: d.ignored || [],
+          tracks: d.tracks.filter(t => t.path).map(t => { const m = { ...t }; delete m.audioData; return m; })
+        };
+        const fh = await this.dir.getFileHandle('crypt_library.json', { create: true });
+        const w = await fh.createWritable();
+        await w.write(JSON.stringify(lib));
+        await w.close();
+      },
+
+      // Unisce il JSON della cartella alla libreria locale: aggiunge, non sovrascrive mai
+      mergeLibrary(lib) {
+        const d = this.data;
+        const colIds = new Set(d.collections.map(c => c.id)), trIds = new Set(d.tracks.map(t => t.id));
+        const paths = new Set(d.tracks.map(t => t.path).filter(Boolean));
+        (lib.collections || []).forEach(c => { if (c && c.id && !colIds.has(c.id)) { colIds.add(c.id); d.collections.push(c); } });
+        (lib.playlists || []).forEach(p => {
+          if (!p || !p.id) return;
+          const old = d.playlists.find(x => x.id === p.id);
+          if (!old) d.playlists.push(p);
+          else if (p.id === 'pl_preferiti') { const have = new Set(old.trackIds || []); old.trackIds = old.trackIds || []; (p.trackIds || []).forEach(id => { if (!have.has(id)) old.trackIds.push(id); }); }
+        });
+        (lib.tracks || []).forEach(t => { if (t && t.id && t.path && !trIds.has(t.id) && !paths.has(t.path)) { d.tracks.push(t); trIds.add(t.id); paths.add(t.path); } });
+        d.artists = d.artists || {};
+        Object.keys(lib.artists || {}).forEach(k => { if (!d.artists[k] && lib.artists[k]) d.artists[k] = lib.artists[k]; });
+        const seen = new Set((d.plays || []).map(p => p[0] + '|' + p[1]));
+        (lib.plays || []).forEach(p => { if (Array.isArray(p) && !seen.has(p[0] + '|' + p[1])) { seen.add(p[0] + '|' + p[1]); (d.plays = d.plays || []).push([p[0], p[1]]); } });
+        d.ignored = [...new Set([...(d.ignored || []), ...(lib.ignored || [])])];
+      },
+
+      async fileFromPath(path) {
+        const parts = path.split('/');
+        let d = this.dir;
+        for (let i = 0; i < parts.length - 1; i++) d = await d.getDirectoryHandle(parts[i]);
+        return (await d.getFileHandle(parts[parts.length - 1])).getFile();
+      },
+
+      // Blob audio di una traccia: dalla cartella se ha un percorso, altrimenti dall'archivio dell'app
+      async getAudioBlob(id) {
+        const t = this.data.tracks.find(x => x.id === id);
+        if (t && t.path && this.dir) {
+          if (await this.folderEnsure()) { try { return await this.fileFromPath(t.path); } catch (e) { console.warn('Folder file:', e); } }
+          else this.folderUI();
+        }
+        return localforage.getItem(this.audioKey(id));
+      },
+
+      // Salva un audio: nella cartella (sottocartella = collection) se collegata, altrimenti nell'archivio. Ritorna il percorso o null.
+      async putAudio(id, file, collectionId) {
+        if (this.dir && await this.folderEnsure()) {
+          const clean = s => String(s).replace(/[\\/:*?"<>|]+/g, '_').trim().replace(/^\.+/, '') || 'untitled';
+          const col = collectionId ? this.data.collections.find(c => c.id === collectionId) : null;
+          let d = this.dir, prefix = '';
+          if (col) { const sub = clean(col.title); d = await d.getDirectoryHandle(sub, { create: true }); prefix = sub + '/'; }
+          const name = clean(file.name || (id + '.mp3'));
+          const m = name.match(/^(.*?)(\.[^.]*)?$/);
+          let cand = name, n = 1;
+          for (;;) { try { await d.getFileHandle(cand); n++; cand = `${m[1]} (${n})${m[2] || ''}`; } catch (_) { break; } }
+          const w = await (await d.getFileHandle(cand, { create: true })).createWritable();
+          if (file.stream) await file.stream().pipeTo(w); else { await w.write(file); await w.close(); }
+          return prefix + cand;
+        }
+        await localforage.setItem(this.audioKey(id), file);
+        return null;
+      },
+
+      ignorePath(p) { if (p) { const a = this.data.ignored = this.data.ignored || []; if (!a.includes(p)) a.push(p); } },
+
+      // Eliminando una traccia: il file nella cartella si cancella solo se lo chiedi, altrimenti la scansione lo ignora
+      async folderDropFile(t) {
+        if (!t.path) return;
+        if (this.dir && this.dirOk && confirm('Also delete the file from the library folder?\n' + t.path + '\n\nOK = delete the file, Cancel = keep it in the folder')) {
+          try {
+            const parts = t.path.split('/');
+            let d = this.dir;
+            for (let i = 0; i < parts.length - 1; i++) d = await d.getDirectoryHandle(parts[i]);
+            await d.removeEntry(parts[parts.length - 1]);
+            return;
+          } catch (e) { console.warn('Remove file:', e); }
+        }
+        this.ignorePath(t.path);
+      },
+
+      async folderScan(silent) {
+        if (!this.dir || !this.dirOk || this._scanning) return;
+        this._scanning = true;
+        const btn = document.getElementById('btn-folder-scan'), label = btn ? btn.innerText : '';
+        try {
+          const found = [];
+          const walk = async (dir, prefix, depth) => {
+            for await (const [name, h] of dir.entries()) {
+              if (name.startsWith('.')) continue;
+              if (h.kind === 'directory') { if (depth < 3) await walk(h, prefix + name + '/', depth + 1); }
+              else if (isAudioFile({ name, type: '' })) found.push({ path: prefix + name, h });
+            }
+          };
+          await walk(this.dir, '', 0);
+          const have = new Set(this.data.tracks.map(t => t.path).filter(Boolean));
+          const ignored = new Set(this.data.ignored || []);
+          const fresh = found.filter(f => !have.has(f.path) && !ignored.has(f.path)).sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
+          const foundSet = new Set(found.map(f => f.path));
+          const missing = this.data.tracks.filter(t => t.path && !foundSet.has(t.path)).length;
+          for (let i = 0; i < fresh.length; i++) {
+            if (btn) btn.innerText = `Scanning ${i + 1}/${fresh.length}`;
+            const f = fresh[i], file = await f.h.getFile();
+            const parts = f.path.split('/'), sub = parts.length > 1 ? parts[0] : null;
+            let col = null;
+            if (sub) {
+              col = this.data.collections.find(c => (c.title || '').toLowerCase() === sub.toLowerCase());
+              if (!col) { col = { id: uid('col'), title: sub, desc: '', type: 'album', cover: null, covers: [] }; this.data.collections.push(col); }
+            }
+            const tags = await readTags(file);
+            const dv = deriveArtist(file.name.replace(/\.[^/.]+$/, ''), tags.artist);
+            this.data.tracks.push({ id: uid('track'), path: f.path, collectionId: col ? col.id : null, title: dv.title, ...(dv.artist ? { artist: dv.artist } : {}), bpm: '---', key: '---', description: '', credits: [], cover: null });
+          }
+          if (fresh.length) {
+            await this.persistData();
+            if (this.currentCollectionId) this.renderCollectionDetail(this.currentCollectionId); else this.render();
+          }
+          if (!silent) alert(`Folder scanned.\nNew tracks: ${fresh.length}` + (missing ? `\nTracks whose file is missing from the folder: ${missing}` : ''));
+        } catch (err) {
+          console.error(err);
+          if (!silent) alert('Scan failed: ' + err.message);
+        } finally {
+          this._scanning = false;
+          if (btn) btn.innerText = label;
+          this.folderUI();
+        }
+      },
+
+      // Sposta nella cartella gli audio che stanno ancora nell'archivio dell'app
+      async folderMigrate() {
+        if (!(await this.folderEnsure())) return alert('Connect the library folder first.');
+        const todo = this.data.tracks.filter(t => !t.path);
+        if (!todo.length) return alert('All tracks are already in the folder.');
+        if (!confirm(`Move ${todo.length} tracks from the app storage into the folder "${this.dir.name}"?\nEach file is checked after copying and only then removed from the app.`)) return;
+        const btn = document.getElementById('btn-folder-move'), label = btn.innerText;
+        const ext = t => /wav/.test(t) ? '.wav' : /flac/.test(t) ? '.flac' : /ogg|opus/.test(t) ? '.ogg' : /mp4|aac|m4a/.test(t) ? '.m4a' : '.mp3';
+        let moved = 0, failed = 0;
+        for (let i = 0; i < todo.length; i++) {
+          btn.innerText = `Moving ${i + 1}/${todo.length}`;
+          const t = todo[i];
+          try {
+            const blob = await localforage.getItem(this.audioKey(t.id));
+            if (!blob) { failed++; continue; }
+            const file = blob.name ? blob : new File([blob], ((t.title || t.id).replace(/[\\/:*?"<>|]+/g, '_')) + ext(blob.type || ''), { type: blob.type });
+            const path = await this.putAudio(t.id, file, t.collectionId);
+            if (!path) { failed++; continue; }
+            if ((await this.fileFromPath(path)).size !== blob.size) { failed++; continue; }
+            t.path = path;
+            await localforage.removeItem(this.audioKey(t.id));
+            moved++;
+            if (moved % 10 === 0) await this.persistData();
+          } catch (err) { console.warn('Move failed:', err); failed++; }
+        }
+        await this.persistData();
+        btn.innerText = label;
+        alert(`Moved: ${moved}` + (failed ? `\nNot moved: ${failed}` : ''));
+        this.render();
+      },
 
       // ---- File audio in arrivo: condivisi da un'altra app (Android), "Apri con" (desktop), trascinati sulla finestra ----
       async takeSharedFiles() {
@@ -1806,7 +2103,7 @@
       // LOGICA CONDIVISIONE TRACCIA
       async shareTrack(track) {
         try {
-          const blob = await localforage.getItem(this.audioKey(track.id));
+          const blob = await this.getAudioBlob(track.id);
           if (!blob) {
             return alert('Audio file not found for sharing.');
           }
@@ -1830,7 +2127,7 @@
         } catch (err) {
           if (err.name !== 'AbortError') {
             console.error('Share failed, falling back to download:', err);
-            const blob = await localforage.getItem(this.audioKey(track.id));
+            const blob = await this.getAudioBlob(track.id);
             if (blob) {
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -2239,6 +2536,10 @@
 
         window.addEventListener('resize', () => { if (fp.classList.contains('open')) this.setWaveMode(true); });
 
+        document.getElementById('btn-folder-pick').onclick = () => this.folderPick();
+        document.getElementById('btn-folder-scan').onclick = () => this.folderSync(false);
+        document.getElementById('btn-folder-move').onclick = () => this.folderMigrate();
+        document.getElementById('folder-banner').onclick = () => this.folderReconnect();
         document.getElementById('btn-export').onclick = () => this.exportBackup();
         document.getElementById('btn-export-new').onclick = () => this.exportBackupNew();
         document.getElementById('btn-import-trigger').onclick = () => document.getElementById('import-file-input').click();
@@ -2259,7 +2560,7 @@
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape' && !setMenu.classList.contains('hidden')) { setOpen(false); setBtn.focus(); }
         });
-        ['btn-style', 'btn-stats'].forEach(id => document.getElementById(id).addEventListener('click', () => setOpen(false)));
+        ['btn-style', 'btn-stats', 'btn-folder-pick', 'btn-folder-scan', 'btn-folder-move'].forEach(id => document.getElementById(id).addEventListener('click', () => setOpen(false)));
 
         this.initCoverViewer();
         this.initVolume();
@@ -2336,7 +2637,8 @@
           let last = 0;
           try { last = +localStorage.getItem('crypt_last_backup') || 0; } catch (_) {}
           const stale = !last || Date.now() - last > 14 * 864e5;
-          el.innerText = `Storage: ${fmt(usage)} used of ${fmt(quota)}` + (usage / quota > 0.85 ? ' (almost full, make a backup)' : '') + ` · Last backup: ${last ? new Date(last).toLocaleDateString() : 'never'}` + (stale ? ' (back up soon)' : '');
+          let pers = null; try { if (navigator.storage.persisted) pers = await navigator.storage.persisted(); } catch (_) {}
+          el.innerText = `Storage: ${fmt(usage)} used of ${fmt(quota)}` + (usage / quota > 0.85 ? ' (almost full, make a backup)' : '') + ` · Last backup: ${last ? new Date(last).toLocaleDateString() : 'never'}` + (stale ? ' (back up soon)' : '') + (pers === false ? ' · Not protected from automatic cleanup (add the app to the home screen)' : '');
         } catch (_) {}
       },
 
@@ -2644,7 +2946,7 @@
             btn.innerText = `${i + 1}/${todo.length}`;
             const t = todo[i];
             let tag = '';
-            try { const blob = await localforage.getItem(this.audioKey(t.id)); if (blob) tag = (await readTags(blob)).artist || ''; } catch (_) {}
+            try { const blob = await this.getAudioBlob(t.id); if (blob) tag = (await readTags(blob)).artist || ''; } catch (_) {}
             const dv = deriveArtist(t.title, tag);
             if (dv.artist) { t.artist = dv.artist; t.title = dv.title; found++; }
           }
@@ -2656,7 +2958,9 @@
 
       async persistData() {
         setTimeout(() => this.updateStorageInfo(), 600);
+        if (this.storageFailed) return;
         await localforage.setItem('crypt_app_data', this.data);
+        this.scheduleLibraryWrite();
       },
 
       goHome() {
@@ -2792,7 +3096,7 @@
         const goneIds = new Set(this.data.tracks.filter(t => t.collectionId === id).map(t => t.id));
         this.data.playlists.forEach(pl => { pl.trackIds = pl.trackIds.filter(tid => !goneIds.has(tid)); });
         this.data.collections = this.data.collections.filter(c => c.id !== id);
-        for (const t of this.data.tracks.filter(t => t.collectionId === id)) { await localforage.removeItem(this.audioKey(t.id)); await localforage.removeItem('peaks_' + t.id); }
+        for (const t of this.data.tracks.filter(t => t.collectionId === id)) { if (t.path) this.ignorePath(t.path); await localforage.removeItem(this.audioKey(t.id)); await localforage.removeItem('peaks_' + t.id); }
         this.data.tracks = this.data.tracks.filter(t => t.collectionId !== id);
         await this.persistData();
         this.goHome();
@@ -2865,7 +3169,10 @@
           const id = editing.id;
           if (file) {
             try {
-              await localforage.setItem(this.audioKey(id), file);
+              const oldPath = editing.path;
+              const p = await this.putAudio(id, file, editing.collectionId);
+              if (p) { editing.path = p; await localforage.removeItem(this.audioKey(id)); } else delete editing.path;
+              if (oldPath && oldPath !== p) this.ignorePath(oldPath);
               await localforage.removeItem('peaks_' + id);
             } catch (err) {
               console.error(err);
@@ -2889,11 +3196,12 @@
           for (let i = 0; i < files.length; i++) {
             const file = files[i];
             const id = uid('track');
+            let path = null;
             try {
-              await localforage.setItem(this.audioKey(id), file);
+              path = await this.putAudio(id, file, this.currentCollectionId || null);
             } catch (err) {
               console.error(err);
-              alert('Storage full! Could not save all tracks.');
+              alert('Could not save the track (' + ((err && err.message) || 'storage full') + ').');
               break;
             }
             const tags = await readTags(file);
@@ -2901,7 +3209,7 @@
             const dv = deriveArtist(baseTitle, artist || tags.artist);
             const finalTitle = dv.title;
             const lyr = (files.length === 1 && lyrics) ? lyrics : (lyMatch.get(i) ? lyMatch.get(i).text.trim() : '');
-            this.data.tracks.push({ id, collectionId: this.currentCollectionId || null, title: finalTitle, ...(dv.artist ? { artist: dv.artist } : {}), bpm: bpm || '---', key: key || '---', description, credits, cover: this.tempTrackCover || null, ...(lyr ? { lyrics: lyr } : {}) });
+            this.data.tracks.push({ id, ...(path ? { path } : {}), collectionId: this.currentCollectionId || null, title: finalTitle, ...(dv.artist ? { artist: dv.artist } : {}), bpm: bpm || '---', key: key || '---', description, credits, cover: this.tempTrackCover || null, ...(lyr ? { lyrics: lyr } : {}) });
           }
         }
 
@@ -3177,6 +3485,8 @@
 
       async deleteTrack(id) {
         if (!confirm("Delete track?")) return;
+        const dt = this.data.tracks.find(t => t.id === id);
+        if (dt && dt.path) await this.folderDropFile(dt);
         await localforage.removeItem(this.audioKey(id));
         await localforage.removeItem('peaks_' + id);
         this.data.tracks = this.data.tracks.filter(t => t.id !== id);
@@ -3561,9 +3871,9 @@
         this.updateMediaSession(track);
         this.setLyrics(track);
 
-        const blob = await localforage.getItem(this.audioKey(track.id));
+        const blob = await this.getAudioBlob(track.id);
         const src = blob ? URL.createObjectURL(blob) : track.audioData;
-        if (!src) return alert('Audio file not found for this track.');
+        if (!src) return alert(track.path && !this.dirOk ? 'The library folder is not connected. Tap the red banner at the top to reconnect it.' : 'Audio file not found for this track.');
         if (this.currentObjectUrl) URL.revokeObjectURL(this.currentObjectUrl);
         this.currentObjectUrl = blob ? src : null;
         this.currentTrackId = track.id;
@@ -4085,7 +4395,8 @@
             if (btn) btn.innerText = `${i + 1}/${tracks.length}`;
             const meta = { ...tracks[i] };
             delete meta.audioData;
-            const blob = await localforage.getItem(this.audioKey(meta.id));
+            delete meta.path;
+            const blob = await this.getAudioBlob(meta.id);
             const audio = blob ? await this.blobToDataUrl(blob) : (tracks[i].audioData || null);
             parts.push(new Blob([JSON.stringify({ track: meta, audio }) + '\n']));
           }
@@ -4244,6 +4555,7 @@
       async importTrack(meta, audio, ctx) {
         const t = { ...meta };
         delete t.audioData;
+        delete t.path;
         const key = this.audioKey(t.id);
         if (ctx.seen) ctx.seen.push(t.id);
         if (ctx.localIds.has(t.id)) {
