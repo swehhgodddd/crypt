@@ -1436,7 +1436,21 @@
         await this.folderSync(false);
       },
 
+      // TEMP diagnostica: mostra cosa vede il browser quando tocchi "Choose folder"
+      _dbg(msg) {
+        let d = document.getElementById('dbg-folder');
+        if (!d) {
+          d = document.createElement('div'); d.id = 'dbg-folder';
+          d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:99999;background:#111;color:#0f0;font:12px/1.4 monospace;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-all';
+          d.onclick = () => d.remove(); document.body.appendChild(d);
+        }
+        d.textContent += msg + '\n';
+      },
+
       async folderPick() {
+        this._dbg('folderPick v3 | showDirectoryPicker=' + typeof window.showDirectoryPicker + ' | secure=' + window.isSecureContext +
+          ' | iframe=' + (window.top !== window) + ' | standalone=' + matchMedia('(display-mode: standalone)').matches +
+          ' | dir=' + !!this.dir + ' dirOk=' + this.dirOk + '\n' + navigator.userAgent);
         if (!this.folderSupported()) return alert('This browser cannot open folders. Use Chrome on Android (version 132 or later), not an in-app browser.');
         // Cartella gia' collegata ma permesso perso: prova prima a riottenerlo.
         // Se non va, NON chiamare il selettore nello stesso tocco (Chrome Android lo rifiuta senza "user gesture"): al tocco dopo si apre.
@@ -1453,7 +1467,7 @@
           h = await window.showDirectoryPicker({ id: 'crypt-library', mode: 'readwrite' });
         } catch (err) {
           if (err && err.name === 'AbortError') return;
-          console.warn('showDirectoryPicker:', err);
+          console.warn('showDirectoryPicker:', err); this._dbg('ERR ' + (err && err.name) + ': ' + (err && err.message));
           const hint = (err && err.name === 'SecurityError')
             ? 'Android does not allow this folder (Downloads, the root of the storage, Android/… or system folders). Create a subfolder, e.g. Music/Crypt, and choose that one.'
             : 'The folder picker could not be opened.';
