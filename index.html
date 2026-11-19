@@ -1436,21 +1436,7 @@
         await this.folderSync(false);
       },
 
-      // TEMP diagnostica: mostra cosa vede il browser quando tocchi "Choose folder"
-      _dbg(msg) {
-        let d = document.getElementById('dbg-folder');
-        if (!d) {
-          d = document.createElement('div'); d.id = 'dbg-folder';
-          d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:99999;background:#111;color:#0f0;font:12px/1.4 monospace;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-all';
-          d.onclick = () => d.remove(); document.body.appendChild(d);
-        }
-        d.textContent += msg + '\n';
-      },
-
       async folderPick() {
-        this._dbg('folderPick v3 | showDirectoryPicker=' + typeof window.showDirectoryPicker + ' | secure=' + window.isSecureContext +
-          ' | iframe=' + (window.top !== window) + ' | standalone=' + matchMedia('(display-mode: standalone)').matches +
-          ' | dir=' + !!this.dir + ' dirOk=' + this.dirOk + '\n' + navigator.userAgent);
         if (!this.folderSupported()) return alert('This browser cannot open folders. Use Chrome on Android (version 132 or later), not an in-app browser.');
         // Cartella gia' collegata ma permesso perso: prova prima a riottenerlo.
         // Se non va, NON chiamare il selettore nello stesso tocco (Chrome Android lo rifiuta senza "user gesture"): al tocco dopo si apre.
@@ -1460,6 +1446,15 @@
           return alert('Permission to the folder was not granted. Tap "Choose folder…" again to pick it.');
         }
         this._pickNext = false;
+        // Nella PWA installata (Android) il selettore cartelle non si apre: va scelto da Chrome.
+        // La cartella scelta resta salvata e la PWA la ricollega (eventualmente con un tocco sul banner).
+        if (matchMedia('(display-mode: standalone)').matches) {
+          if (confirm('In the installed app the folder picker does not open.\nOpen Crypt in Chrome to choose the folder? Then come back to the app.')) {
+            location.href = 'intent://' + location.host + location.pathname + location.search +
+              '#Intent;scheme=' + location.protocol.replace(':', '') + ';package=com.android.chrome;end';
+          }
+          return;
+        }
         // Il selettore va chiamato subito dentro il tocco: niente await/confirm prima.
         // Annullare il selettore lascia la cartella attuale com'e'.
         let h;
@@ -1467,7 +1462,7 @@
           h = await window.showDirectoryPicker({ id: 'crypt-library', mode: 'readwrite' });
         } catch (err) {
           if (err && err.name === 'AbortError') return;
-          console.warn('showDirectoryPicker:', err); this._dbg('ERR ' + (err && err.name) + ': ' + (err && err.message));
+          console.warn('showDirectoryPicker:', err);
           const hint = (err && err.name === 'SecurityError')
             ? 'Android does not allow this folder (Downloads, the root of the storage, Android/… or system folders). Create a subfolder, e.g. Music/Crypt, and choose that one.'
             : 'The folder picker could not be opened.';
